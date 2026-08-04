@@ -1,0 +1,1092 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Robot 維修紀錄表（AI 版 V1.0）</title>
+<style>
+  :root{
+    --ink:#1C2733;
+    --ink-soft:#3A4757;
+    --steel:#2E4057;
+    --line:#D9DEE5;
+    --paper:#F5F6F8;
+    --card:#FFFFFF;
+    --amber:#E8890C;
+    --amber-soft:#FDF1DF;
+    --green:#2F9E44;
+    --green-soft:#EAF7EC;
+    --red:#E03131;
+    --red-soft:#FDECEC;
+    --mono: 'Consolas','SFMono-Regular','Menlo',monospace;
+    --sans: -apple-system,'Segoe UI','PingFang TC','Microsoft JhengHei','Noto Sans TC',sans-serif;
+  }
+  *{box-sizing:border-box;}
+  html{scroll-behavior:smooth;}
+  body{margin:0;font-family:var(--sans);background:var(--paper);color:var(--ink);font-size:14px;line-height:1.55;overflow-anchor:none;}
+  h1,h2,h3{font-family:var(--sans);margin:0;}
+  button{font-family:var(--sans);cursor:pointer;}
+  input,select,textarea{font-family:var(--sans);font-size:14px;color:var(--ink);}
+
+  /* ---- Top bar ---- */
+  #topbar{position:sticky;top:0;z-index:50;background:var(--card);color:var(--ink);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);}
+  #topbar .title{font-weight:700;font-size:16px;letter-spacing:.3px;color:var(--ink);}
+  #topbar .title small{display:block;font-weight:400;font-size:11px;color:var(--ink-soft);letter-spacing:.5px;}
+  #topbar .caseid{font-family:var(--mono);background:var(--amber-soft);border:1px solid #F0C583;color:#8A5300;padding:4px 10px;border-radius:4px;font-size:12px;}
+  #topbar .spacer{flex:1;}
+  .btn{border:none;border-radius:6px;padding:8px 14px;font-size:13px;font-weight:600;white-space:nowrap;transition:opacity .15s, background .15s;}
+  .btn:hover{opacity:.85;}
+  .btn-amber{background:var(--amber);color:#1C1000;}
+  .btn-outline{background:#fff;border:1px solid var(--line);color:var(--ink-soft);}
+  .btn-outline:hover{background:var(--paper);}
+  .btn-ghost{background:var(--paper);border:1px solid var(--line);color:var(--ink-soft);}
+  .btn-danger{background:var(--red);color:#fff;}
+  .btn-sm{padding:5px 10px;font-size:12px;border-radius:5px;}
+
+  /* ---- Layout ---- */
+  #layout{display:grid;grid-template-columns:280px 1fr;gap:0;align-items:start;}
+  #sidebar{position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;background:var(--paper);color:var(--ink);padding:16px;border-right:1px solid var(--line);}
+  #sidebar h3{font-size:12px;letter-spacing:1px;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;}
+  #sidebar input[type=text]{width:100%;padding:7px 9px;border-radius:5px;border:1px solid var(--line);background:#fff;color:var(--ink);margin-bottom:10px;}
+  #sidebar input[type=text]::placeholder{color:#A3AEBB;}
+  .case-item{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:8px;cursor:pointer;font-size:12px;}
+  .case-item:hover{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber);}
+  .case-item .l1{font-weight:700;color:var(--ink);display:flex;justify-content:space-between;}
+  .case-item .l2{color:var(--ink-soft);margin-top:2px;}
+  .case-item .tag{display:inline-block;background:var(--amber-soft);color:#8A5300;border-radius:3px;padding:1px 6px;font-size:10px;margin-top:4px;}
+  #sim-panel{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
+  .sim-card{background:var(--amber-soft);border:1px solid #F0C583;border-radius:6px;padding:9px 10px;margin-bottom:8px;font-size:12px;color:var(--ink-soft);}
+  .sim-card .score{color:#8A5300;font-weight:700;}
+  .sim-card .apply{margin-top:6px;}
+  .empty-hint{color:var(--ink-soft);font-size:12px;}
+
+  #main{padding:22px 28px 80px;max-width:980px;}
+  .quicknav{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:18px;position:sticky;top:52px;background:var(--paper);padding:8px 0;z-index:10;}
+  .quicknav a{font-size:11px;color:var(--ink-soft);background:var(--card);border:1px solid var(--line);border-radius:20px;padding:5px 10px;text-decoration:none;}
+  .quicknav a:hover{border-color:var(--amber);color:var(--amber);}
+
+  .card{background:var(--card);border:1px solid var(--line);border-radius:8px;padding:18px 20px;margin-bottom:16px;scroll-margin-top:124px;}
+  .card h2{font-size:14px;color:var(--steel);border-left:4px solid var(--amber);padding-left:10px;margin-bottom:14px;}
+  .card .hint{font-size:12px;color:#8A98A8;margin:-8px 0 12px 14px;}
+
+  .grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px 16px;}
+  .field{margin-bottom:10px;}
+  .field label{display:block;font-size:12px;font-weight:600;color:var(--ink-soft);margin-bottom:4px;}
+  .field input[type=text],.field input[type=date],.field input[type=number],.field select,.field textarea{
+    width:100%;padding:8px 10px;border:1px solid var(--line);border-radius:5px;background:#fff;
+  }
+  .field textarea{resize:vertical;min-height:70px;}
+  .field input:focus,.field select:focus,.field textarea:focus{outline:none;border-color:var(--amber);box-shadow:0 0 0 3px var(--amber-soft);}
+
+  .chipgroup{display:flex;flex-wrap:wrap;gap:8px;}
+  .chip{border:1px solid var(--line);border-radius:20px;padding:6px 12px;font-size:12px;background:#fff;user-select:none;}
+  .chip.on{background:var(--amber-soft);border-color:var(--amber);color:#8A5300;font-weight:700;}
+  .chip input{display:none;}
+
+  table.grid-table{width:100%;border-collapse:collapse;font-size:13px;}
+  table.grid-table th{background:#F0F2F5;text-align:left;padding:7px 8px;font-size:11px;color:var(--ink-soft);border:1px solid var(--line);}
+  table.grid-table td{padding:5px 6px;border:1px solid var(--line);vertical-align:middle;}
+  table.grid-table input,table.grid-table select{width:100%;border:1px solid transparent;background:transparent;padding:5px 6px;border-radius:4px;}
+  table.grid-table input:focus,table.grid-table select:focus{border-color:var(--amber);background:#fff;outline:none;}
+  select.result-ok{color:var(--green);font-weight:700;}
+  select.result-ng{color:var(--red);font-weight:700;}
+  .row-actions{text-align:center;}
+  .row-actions button{border:none;background:none;color:var(--red);font-size:14px;}
+
+  .add-row{margin-top:8px;}
+
+  .upload-zone{border:2px dashed var(--line);border-radius:8px;padding:16px;text-align:center;background:#FAFBFC;}
+  .upload-zone input{display:none;}
+  .upload-zone label{color:var(--steel);font-weight:600;font-size:13px;cursor:pointer;}
+  .thumbs{display:flex;flex-wrap:wrap;gap:10px;margin-top:12px;}
+  .thumb{width:88px;position:relative;}
+  .thumb img,.thumb video{width:88px;height:88px;object-fit:cover;border-radius:6px;border:1px solid var(--line);}
+  .thumb .name{font-size:10px;color:#8A98A8;margin-top:3px;word-break:break-all;text-align:center;}
+  .thumb .rm{position:absolute;top:-6px;right:-6px;background:var(--red);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:11px;line-height:18px;}
+
+  .stars{font-size:22px;color:var(--line);cursor:pointer;letter-spacing:2px;}
+  .stars span.on{color:var(--amber);}
+
+  .tagbox{border:1px solid var(--line);border-radius:5px;padding:6px 8px;display:flex;flex-wrap:wrap;gap:6px;background:#fff;}
+  .tagbox .kw{background:#EEF1F5;border-radius:14px;padding:3px 9px;font-size:12px;display:flex;align-items:center;gap:5px;}
+  .tagbox .kw button{border:none;background:none;color:#8A98A8;font-size:11px;}
+  .tagbox input{border:none;outline:none;flex:1;min-width:100px;font-size:13px;}
+
+  #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:6px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:100;}
+  #toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
+
+  @media print{
+    #topbar,#sidebar,.quicknav,.upload-zone,.no-print,.add-row{display:none !important;}
+    #layout{grid-template-columns:1fr;}
+    #main{max-width:100%;padding:0;}
+    .card{border:none;border-bottom:1px solid #ccc;border-radius:0;page-break-inside:avoid;}
+    body{background:#fff;}
+  }
+  @media (max-width: 900px){
+    #layout{grid-template-columns:1fr;}
+    #sidebar{position:static;height:auto;}
+    .grid2{grid-template-columns:1fr;}
+  }
+</style>
+</head>
+<body>
+
+<div id="topbar">
+  <div class="title">Robot 維修紀錄表<small>AI Maintenance Record · V1.0</small></div>
+  <div class="caseid" id="caseIdDisplay">Case ID：草稿</div>
+  <span class="caseid no-print" id="cloudStatus" style="color:#8A98A8;">本機模式</span>
+  <div class="spacer"></div>
+  <button class="btn btn-outline btn-sm no-print" id="btnNew">＋ 新案例</button>
+  <button class="btn btn-ghost btn-sm no-print" id="btnImport">匯入資料庫(.js)</button>
+  <button class="btn btn-ghost btn-sm no-print" id="btnExport">匯出資料庫(.js)</button>
+  <button class="btn btn-ghost btn-sm no-print" id="btnPrint">產生維修報告(PDF)</button>
+  <button class="btn btn-amber btn-sm no-print" id="btnSave">✓ 儲存至 AI Repair Case 資料庫</button>
+  <input type="file" id="fileImport" accept=".js" style="display:none">
+</div>
+
+<div id="layout">
+
+  <!-- ================= SIDEBAR ================= -->
+  <div id="sidebar" class="no-print">
+    <h3>案例查詢</h3>
+    <input type="text" id="searchBox" placeholder="搜尋 Error Code / 客戶 / 關鍵字...">
+    <div id="caseList"></div>
+
+    <div id="sim-panel">
+      <h3>AI 相似案例建議</h3>
+      <div id="simList"><div class="empty-hint">請於「異常資訊」與「AI 知識庫標籤」填寫 Error Code / 故障分類 / 關鍵字，系統將自動比對過往案例。</div></div>
+    </div>
+  </div>
+
+  <!-- ================= MAIN FORM ================= -->
+  <div id="main">
+
+    <div class="quicknav no-print">
+      <a href="#sec1">一、基本資訊</a><a href="#sec2">二、異常資訊</a><a href="#sec3">三、異常現象</a>
+      <a href="#sec4">四、初步判斷</a><a href="#sec5">五、檢查流程</a><a href="#sec6">六、更換零件</a>
+      <a href="#sec7">七、Root Cause</a><a href="#sec8">八、改善措施</a><a href="#sec9">九、測試結果</a>
+      <a href="#sec10">十、量測資料</a><a href="#sec11">十一、附件</a><a href="#sec12">十二、AI標籤</a><a href="#sec13">十三、AI總結</a>
+    </div>
+
+    <!-- 一、基本資訊 -->
+    <div class="card" id="sec1">
+      <h2>一、基本資訊</h2>
+      <div class="grid2">
+        <div class="field"><label>Case ID</label><input type="text" id="f_caseId" readonly style="background:#F0F2F5;color:#8A98A8;"></div>
+        <div class="field"><label>維修日期</label><input type="date" id="f_date"></div>
+        <div class="field"><label>客戶名稱</label>
+          <input type="text" id="f_customer" list="dl_customer" placeholder="選擇或輸入新客戶">
+          <datalist id="dl_customer"></datalist>
+        </div>
+        <div class="field"><label>廠區</label>
+          <input type="text" id="f_site" list="dl_site" placeholder="選擇或輸入新廠區，例：Fab 12A">
+          <datalist id="dl_site"></datalist>
+        </div>
+        <div class="field"><label>機台型號</label>
+          <input type="text" id="f_machineModel" list="dl_machineModel" placeholder="選擇或輸入新機台型號">
+          <datalist id="dl_machineModel"></datalist>
+        </div>
+        <div class="field"><label>Robot 型號</label>
+          <input type="text" id="f_robotModel" list="dl_robotModel" placeholder="選擇或輸入新Robot型號">
+          <datalist id="dl_robotModel"></datalist>
+        </div>
+        <div class="field"><label>Robot SN</label><input type="text" id="f_robotSN"></div>
+        <div class="field"><label>工程師</label><input type="text" id="f_engineer"></div>
+      </div>
+      <div class="field"><label>維修類型</label>
+        <div class="chipgroup" id="f_repairType">
+          <label class="chip"><input type="radio" name="repairType" value="PM">PM</label>
+          <label class="chip"><input type="radio" name="repairType" value="Breakdown">Breakdown</label>
+          <label class="chip"><input type="radio" name="repairType" value="Installation">Installation</label>
+          <label class="chip"><input type="radio" name="repairType" value="Modification">Modification</label>
+        </div>
+      </div>
+    </div>
+
+    <!-- 二、異常資訊 -->
+    <div class="card" id="sec2">
+      <h2>二、異常資訊</h2>
+      <div class="grid2">
+        <div class="field"><label>Error Code</label>
+          <input type="text" id="f_errorCode" list="dl_errorCode" placeholder="輸入或選擇歷史 Error Code">
+          <datalist id="dl_errorCode"></datalist>
+        </div>
+        <div class="field"><label>Alarm Message</label><input type="text" id="f_alarmMsg"></div>
+        <div class="field"><label>發生時間</label><input type="text" id="f_occurTime" placeholder="YYYY/MM/DD HH:MM"></div>
+        <div class="field"><label>發生頻率</label>
+          <div class="chipgroup" id="f_frequency">
+            <label class="chip"><input type="radio" name="frequency" value="第一次">第一次</label>
+            <label class="chip"><input type="radio" name="frequency" value="偶發">偶發</label>
+            <label class="chip"><input type="radio" name="frequency" value="經常">經常</label>
+          </div>
+        </div>
+      </div>
+      <div class="field"><label>發生條件</label>
+        <div class="hint" style="margin:0 0 6px 0;">說明：故障在什麼「特定情況」下才會出現，不是發生頻率、也不是客戶描述。例如：僅在高速(100%)動作時觸發／冷機開機後第一次動作才發生／連續Cycle超過600次後才出現／Z軸下降到特定行程位置時觸發／僅在特定Recipe或製程步驟下發生。</div>
+        <textarea id="f_condition" style="min-height:44px;"></textarea>
+      </div>
+      <div class="field"><label>客戶描述</label><textarea id="f_customerDesc" style="min-height:44px;"></textarea></div>
+      <div class="field"><label>Log File</label>
+        <div class="upload-zone no-print">
+          <label for="logInput">📄 點擊上傳 Log File（.log／.txt／.csv／.zip 等）</label>
+          <input type="file" id="logInput" multiple>
+        </div>
+        <div id="logList" style="margin-top:10px;"></div>
+      </div>
+    </div>
+
+    <!-- 三、異常現象 -->
+    <div class="card" id="sec3">
+      <h2>三、異常現象</h2>
+      <div class="hint">例：Robot停止於Load Port／無法Home／真空建立失敗／Encoder Error／Motion Alarm／Servo OFF</div>
+      <div class="field"><textarea id="f_symptom" style="min-height:90px;"></textarea></div>
+    </div>
+
+    <!-- 四、初步判斷 -->
+    <div class="card" id="sec4">
+      <h2>四、初步判斷</h2>
+      <div class="chipgroup" id="f_prelim"></div>
+    </div>
+
+    <!-- 五、檢查流程 -->
+    <div class="card" id="sec5">
+      <h2>五、檢查流程</h2>
+      <table class="grid-table">
+        <thead><tr><th style="width:50px;">Step</th><th>檢查項目</th><th style="width:150px;">結果</th></tr></thead>
+        <tbody id="checkStepsBody"></tbody>
+      </table>
+    </div>
+
+    <!-- 六、更換零件 -->
+    <div class="card" id="sec6">
+      <h2>六、更換零件</h2>
+      <table class="grid-table">
+        <thead><tr><th>Part No</th><th>零件名稱</th><th>SN</th><th style="width:80px;">數量</th><th style="width:36px;"></th></tr></thead>
+        <tbody id="partsBody"></tbody>
+      </table>
+      <button class="btn btn-outline btn-sm add-row no-print" id="btnAddPart" style="border-color:var(--line);color:var(--steel);">＋ 新增零件</button>
+    </div>
+
+    <!-- 七、Root Cause -->
+    <div class="card" id="sec7">
+      <h2>七、Root Cause（根本原因）</h2>
+      <div class="hint">例：Encoder Cable接觸不良／Motor Bearing損壞／Vacuum Sensor Offset Drift／Servo Gain設定異常／Connector Pin鬆脫</div>
+      <div class="field"><textarea id="f_rootCause" style="min-height:70px;"></textarea></div>
+    </div>
+
+    <!-- 八、改善措施 -->
+    <div class="card" id="sec8">
+      <h2>八、改善措施</h2>
+      <div class="hint">例：更換Motor／重新Calibration／修改Servo Parameter／重新固定Cable／更新Firmware</div>
+      <div class="field"><textarea id="f_improvement" style="min-height:70px;"></textarea></div>
+    </div>
+
+    <!-- 九、測試結果 -->
+    <div class="card" id="sec9">
+      <h2>九、測試結果</h2>
+      <div class="chipgroup" id="f_testResults"></div>
+    </div>
+
+    <!-- 十、量測資料 -->
+    <div class="card" id="sec10">
+      <h2>十、量測資料</h2>
+      <div class="hint">量測項目由使用者自行新增，例如：Vacuum／Air Pressure／Servo Current／Encoder Count／Position Error／Vibration／Repeatability 等</div>
+      <table class="grid-table">
+        <thead><tr><th>項目</th><th>數值</th><th>規格</th><th style="width:36px;"></th></tr></thead>
+        <tbody id="measureBody"></tbody>
+      </table>
+      <datalist id="dl_measureItem">
+        <option value="Vacuum"><option value="Air Pressure"><option value="Servo Current">
+        <option value="Encoder Count"><option value="Position Error"><option value="Vibration"><option value="Repeatability">
+      </datalist>
+      <button class="btn btn-outline btn-sm add-row no-print" id="btnAddMeasure" style="border-color:var(--line);color:var(--steel);">＋ 新增量測項目</button>
+    </div>
+
+    <!-- 十一、附件 -->
+    <div class="card" id="sec11">
+      <h2>十一、附件</h2>
+      <div class="chipgroup" id="f_attachTags"></div>
+      <div style="height:12px;"></div>
+      <div class="upload-zone no-print">
+        <label for="photoInput">📷 點擊上傳照片（Before / After Repair 皆可）</label>
+        <input type="file" id="photoInput" accept="image/*" multiple>
+      </div>
+      <div class="thumbs" id="photoThumbs"></div>
+      <div style="height:12px;"></div>
+      <div class="upload-zone no-print">
+        <label for="videoInput">🎬 點擊上傳維修影片</label>
+        <input type="file" id="videoInput" accept="video/*" multiple>
+      </div>
+      <div class="thumbs" id="videoThumbs"></div>
+      <div class="hint" style="margin-top:10px;">提醒：影片檔案較大，建議控制在數十 MB 內，避免匯出的 .js 資料庫檔過大。</div>
+    </div>
+
+    <!-- 十二、AI 知識庫標籤 -->
+    <div class="card" id="sec12">
+      <h2>十二、AI 知識庫標籤（非常重要）</h2>
+      <div class="grid2">
+        <div class="field"><label>故障分類</label>
+          <select id="f_category"></select>
+        </div>
+        <div class="field"><label>更換零件（摘要）</label><input type="text" id="f_partsReplacedSummary"></div>
+        <div class="field"><label>Repair Time（分鐘）</label><input type="number" id="f_repairTime" min="0"></div>
+        <div class="field"><label>Difficulty</label>
+          <select id="f_difficulty"><option value="">請選擇</option><option>簡單</option><option>中等</option><option>困難</option></select>
+        </div>
+        <div class="field"><label>SOP 文件編號 / 連結</label><input type="text" id="f_sop"></div>
+        <div class="field"><label>是否再次發生</label>
+          <select id="f_recurrence"><option value="">請選擇</option><option>否</option><option>是</option></select>
+        </div>
+        <div class="field"><label>是否建立 Case</label>
+          <select id="f_createCase"><option value="">請選擇</option><option>是</option><option>否</option></select>
+        </div>
+        <div class="field"><label>是否建立 SOP</label>
+          <select id="f_createSOP"><option value="">請選擇</option><option>是</option><option>否</option></select>
+        </div>
+      </div>
+      <div class="field"><label>Robot Axis</label>
+        <div class="hint" style="margin:0 0 8px 0;">SCARA：Z1／Z2／Theta／R1／R2／Track　　HMJ：Z1／Z2／J1(=Theta)／J2(=R1)／R1(Rot Down)／R2(Rot Up) — 注意 SCARA 與 HMJ 的 R1／R2 命名不同，請依機型分別勾選</div>
+        <div class="chipgroup" id="f_robotAxis"></div>
+      </div>
+      <div class="field"><label>關鍵字（Enter 新增）</label>
+        <div class="tagbox" id="keywordBox">
+          <input type="text" id="keywordInput" placeholder="輸入關鍵字後按 Enter">
+        </div>
+      </div>
+    </div>
+
+    <!-- 十三、AI 維修總結 -->
+    <div class="card" id="sec13">
+      <h2>十三、AI 維修總結</h2>
+      <div class="field"><label>Case Summary</label><textarea id="f_caseSummary" style="min-height:60px;"></textarea></div>
+      <div class="field"><label>此次故障原因</label><textarea id="f_causeSummary" style="min-height:44px;"></textarea></div>
+      <div class="field"><label>最佳維修流程</label><textarea id="f_bestProcess" style="min-height:60px;"></textarea></div>
+      <div class="field"><label>預防方式</label><textarea id="f_prevention" style="min-height:44px;"></textarea></div>
+      <div class="field"><label>是否推薦加入 AI 知識庫</label>
+        <div class="stars" id="f_stars">★★★★★</div>
+      </div>
+    </div>
+
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<!-- 資料庫來源：若同目錄存在 repair_cases_data.js 會自動載入既有案例，找不到則從空白開始 -->
+<!-- 雲端共用資料庫（選用）：Firebase Firestore SDK。若未設定 FIREBASE_CONFIG，這兩個檔案載入失敗也不影響本機模式運作 -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script src="repair_cases_data.js" onerror="window.ROBOT_REPAIR_CASES = window.ROBOT_REPAIR_CASES || [];"></script>
+
+<script>
+(function(){
+  "use strict";
+
+  /* ---------------- 靜態選項定義 ---------------- */
+  var CATEGORY_OPTIONS = ["Sensor","Motor","Servo Driver","Encoder","Vacuum","Air Pressure","Cable","IO Board","Controller","Mechanical","Software","Unknown"];
+  var TEST_RESULT_OPTIONS = ["Home OK","Pick OK","Place OK","Vacuum OK","Mapping OK","Dry Run OK","Production OK"];
+  var ATTACH_OPTIONS = ["Alarm Screenshot","Servo Waveform","Error Log","Camera Photo","Before Repair","After Repair","Video"];
+  var AXIS_OPTIONS = ["Z1 (SCARA)","Z2 (SCARA)","Theta (SCARA)","R1 (SCARA)","R2 (SCARA)","Track (SCARA)","J1 (HMJ)","J2 (HMJ)","R1 (HMJ)","R2 (HMJ)","Z1 (HMJ)","Z2 (HMJ)"];
+  var CHECK_STEPS = ["Alarm確認","Sensor檢查","IO檢查","Servo狀態","Motor測試","Encoder確認","Cable檢查","Robot Motion Test","Dry Run","Production Test"];
+  var MEASURE_ITEMS = ["Vacuum","Air Pressure","Servo Current","Encoder Count","Position Error","Vibration","Repeatability"];
+
+  /* ---------------- 資料庫（記憶體 + localStorage 備援） ---------------- */
+  var DB_KEY = "robot_repair_cases_v1";
+  function loadDB(){
+    var fromFile = Array.isArray(window.ROBOT_REPAIR_CASES) ? window.ROBOT_REPAIR_CASES : [];
+    if (fromFile.length) return fromFile.slice();
+    try{
+      var raw = localStorage.getItem(DB_KEY);
+      if (raw) return JSON.parse(raw);
+    }catch(e){}
+    return [];
+  }
+  var db = loadDB();
+  function persistLocal(){
+    try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){}
+  }
+
+  /* ---------------- 雲端共用資料庫（Firebase Firestore，選用） ----------------
+     要讓多人即時共用同一份資料庫，請到 https://console.firebase.google.com 建立專案，
+     啟用 Firestore Database，並把下方六個欄位換成你專案的設定值
+     （專案設定 > 一般 > 你的應用程式 > SDK 設定和設定 可以找到）。
+     六個欄位維持空字串 "" 時，程式會自動使用「本機模式」，跟以前一樣靠匯出/匯入 .js 檔運作。
+  ------------------------------------------------------------------------------ */
+  var FIREBASE_CONFIG = {
+    apiKey: "AIzaSyDA44bC78GhhvoZU1Q52fi0baXW532paDM",
+    authDomain: "robot-repair-db.firebaseapp.com",
+    projectId: "robot-repair-db",
+    storageBucket: "robot-repair-db.firebasestorage.app",
+    messagingSenderId: "664709764263",
+    appId: "1:664709764263:web:b50fd52b60e5d032f07782",
+    measurementId: "G-FK62T8TDES"
+  };
+  var CLOUD_ENABLED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId);
+  var firestoreDB = null;
+  var ATTACH_CACHE_KEY = "robot_repair_attachments_v1";
+
+  function setCloudStatus(state){
+    var el = document.getElementById("cloudStatus");
+    if (!el) return;
+    var map = {
+      connecting: ["雲端連線中...", "#8A98A8"],
+      connected: ["☁ 已連線共用資料庫", "#2F9E44"],
+      error: ["⚠ 雲端連線失敗（已切換本機模式）", "#E03131"],
+      local: ["本機模式", "#8A98A8"]
+    };
+    var v = map[state] || map.local;
+    el.textContent = v[0];
+    el.style.color = v[1];
+    el.style.borderColor = v[1];
+  }
+
+  function loadAttachCache(){
+    try{ return JSON.parse(localStorage.getItem(ATTACH_CACHE_KEY)||"{}"); }catch(e){ return {}; }
+  }
+  function saveAttachCache(cache){
+    try{ localStorage.setItem(ATTACH_CACHE_KEY, JSON.stringify(cache)); }catch(e){}
+  }
+  // 照片/影片/Log 原始檔太大，不適合放進 Firestore（單筆文件上限1MB），
+  // 雲端只同步「已上傳哪些檔案」的清單，原始檔僅保留在上傳者自己的瀏覽器裡
+  function stripHeavyAttachments(rec){
+    var copy = JSON.parse(JSON.stringify(rec));
+    var a = copy.attachments || {tags:[],photos:[],videos:[],logs:[]};
+    copy.attachments = {
+      tags: a.tags||[],
+      photos: (a.photos||[]).map(function(p){return {name:p.name};}),
+      videos: (a.videos||[]).map(function(v){return {name:v.name};}),
+      logs: (a.logs||[]).map(function(l){return {name:l.name, size:l.size};})
+    };
+    return copy;
+  }
+
+  function initCloud(){
+    if (!CLOUD_ENABLED){ setCloudStatus("local"); return; }
+    if (typeof firebase === "undefined"){ setCloudStatus("error"); return; }
+    try{
+      setCloudStatus("connecting");
+      firebase.initializeApp(FIREBASE_CONFIG);
+      firestoreDB = firebase.firestore();
+      firestoreDB.collection("repair_cases").onSnapshot(function(snapshot){
+        var cloudDb = [];
+        snapshot.forEach(function(doc){ cloudDb.push(doc.data()); });
+        db = cloudDb;
+        persistLocal();
+        renderCaseList(document.getElementById("searchBox").value);
+        refreshErrorCodeList();
+        refreshEditableDatalists();
+        setCloudStatus("connected");
+      }, function(err){
+        console.error(err);
+        setCloudStatus("error");
+        toast("雲端資料庫連線失敗，已切換為本機模式："+err.message);
+      });
+    }catch(e){
+      console.error(e);
+      setCloudStatus("error");
+    }
+  }
+
+  /* ---------------- 目前案例狀態 ---------------- */
+  var current = null; // 目前表單對應的 record 物件（新案例時為 null）
+
+  function newCaseId(){
+    var d = new Date();
+    var y = d.getFullYear(), m = ("0"+(d.getMonth()+1)).slice(-2), day=("0"+d.getDate()).slice(-2);
+    var seq = 1;
+    var prefix = "RC-"+y+m+day+"-";
+    db.forEach(function(c){
+      if (c.basic && c.basic.caseId && c.basic.caseId.indexOf(prefix)===0){
+        var n = parseInt(c.basic.caseId.split("-").pop(),10);
+        if (!isNaN(n) && n>=seq) seq = n+1;
+      }
+    });
+    return prefix + ("00"+seq).slice(-2);
+  }
+
+  /* ---------------- DOM 產生：動態區塊 ---------------- */
+  function buildChipGroup(containerId, options, name, multi){
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+    options.forEach(function(opt){
+      var label = document.createElement("label");
+      label.className = "chip";
+      var input = document.createElement("input");
+      input.type = multi ? "checkbox" : "checkbox";
+      input.value = opt; input.name = name;
+      label.appendChild(input);
+      label.appendChild(document.createTextNode(opt));
+      input.addEventListener("change", function(){
+        label.classList.toggle("on", input.checked);
+        if (name==="category_axis") refreshSimilar();
+      });
+      el.appendChild(label);
+    });
+  }
+  buildChipGroup("f_prelim", CATEGORY_OPTIONS, "prelim", true);
+  buildChipGroup("f_testResults", TEST_RESULT_OPTIONS, "testResults", true);
+  buildChipGroup("f_attachTags", ATTACH_OPTIONS, "attachTags", true);
+  buildChipGroup("f_robotAxis", AXIS_OPTIONS, "robotAxis", true);
+
+  document.querySelectorAll('#f_repairType input, #f_frequency input').forEach(function(inp){
+    inp.addEventListener("change", function(){
+      inp.closest(".chipgroup").querySelectorAll(".chip").forEach(function(l){ l.classList.remove("on"); });
+      inp.closest("label").classList.add("on");
+    });
+  });
+
+  var catSelect = document.getElementById("f_category");
+  catSelect.innerHTML = '<option value="">請選擇</option>' + CATEGORY_OPTIONS.map(function(c){return '<option>'+c+'</option>';}).join("");
+
+  function checkStepRow(step, item, value){
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td style="text-align:center;color:#8A98A8;">'+step+'</td>'+
+      '<td>'+item+'</td>'+
+      '<td><select class="chk-result" data-step="'+step+'"><option value="">—</option><option value="OK">OK</option><option value="NG">NG</option><option value="N/A">N/A</option></select></td>';
+    document.getElementById("checkStepsBody").appendChild(tr);
+    var sel = tr.querySelector("select");
+    if (value){ sel.value = value; }
+    updateResultColor(sel);
+    sel.addEventListener("change", function(){ updateResultColor(sel); });
+  }
+  function updateResultColor(sel){
+    sel.classList.remove("result-ok","result-ng");
+    if (sel.value==="OK") sel.classList.add("result-ok");
+    if (sel.value==="NG") sel.classList.add("result-ng");
+  }
+  function rebuildCheckSteps(values){
+    document.getElementById("checkStepsBody").innerHTML = "";
+    CHECK_STEPS.forEach(function(item, i){ checkStepRow(i+1, item, values && values[i] ? values[i].result : ""); });
+  }
+  rebuildCheckSteps();
+
+  function measureRow(m){
+    m = m || {item:"",value:"",spec:""};
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td><input type="text" class="meas-item" list="dl_measureItem" value="'+escAttr(m.item)+'" placeholder="例：Vacuum"></td>'+
+      '<td><input type="text" class="meas-value" value="'+escAttr(m.value)+'"></td>'+
+      '<td><input type="text" class="meas-spec" value="'+escAttr(m.spec)+'"></td>'+
+      '<td class="row-actions no-print"><button type="button" title="刪除">✕</button></td>';
+    tr.querySelector("button").addEventListener("click", function(){ tr.remove(); });
+    document.getElementById("measureBody").appendChild(tr);
+  }
+  function rebuildMeasures(values){
+    document.getElementById("measureBody").innerHTML = "";
+    if (Array.isArray(values) && values.length){
+      values.forEach(measureRow);
+    } else if (values && typeof values==="object" && Object.keys(values).length){
+      // 相容舊版（物件格式）資料，自動轉換成新的可編輯陣列格式
+      Object.keys(values).forEach(function(item){
+        measureRow({item:item, value:values[item].value||"", spec:values[item].spec||""});
+      });
+    }
+    // 若無任何資料，表格保持空白，由使用者自行新增
+  }
+  rebuildMeasures();
+  document.getElementById("btnAddMeasure").addEventListener("click", function(){ measureRow(); });
+
+  function partRow(part){
+    part = part || {partNo:"",partName:"",sn:"",qty:""};
+    var tr = document.createElement("tr");
+    tr.innerHTML =
+      '<td><input type="text" class="part-no" value="'+escAttr(part.partNo)+'"></td>'+
+      '<td><input type="text" class="part-name" value="'+escAttr(part.partName)+'"></td>'+
+      '<td><input type="text" class="part-sn" value="'+escAttr(part.sn)+'"></td>'+
+      '<td><input type="text" class="part-qty" value="'+escAttr(part.qty)+'"></td>'+
+      '<td class="row-actions no-print"><button type="button" title="刪除">✕</button></td>';
+    tr.querySelector("button").addEventListener("click", function(){ tr.remove(); });
+    document.getElementById("partsBody").appendChild(tr);
+  }
+  document.getElementById("btnAddPart").addEventListener("click", function(){ partRow(); });
+  partRow();
+
+  function escAttr(s){ return (s==null?"":String(s)).replace(/"/g,"&quot;"); }
+
+  /* ---------------- 照片 / 影片上傳 ---------------- */
+  var photos = [], videos = [];
+  function readFileAsDataURL(file, cb){
+    var reader = new FileReader();
+    reader.onload = function(){ cb(reader.result); };
+    reader.readAsDataURL(file);
+  }
+  function renderThumbs(list, containerId, isVideo){
+    var el = document.getElementById(containerId);
+    el.innerHTML = "";
+    list.forEach(function(item, idx){
+      var div = document.createElement("div");
+      div.className = "thumb";
+      var media;
+      if (!item.dataUrl){
+        // 雲端模式下，其他人看到的只有檔名（原始檔僅存在上傳者本機）
+        media = '<div style="width:88px;height:88px;border-radius:6px;border:1px solid var(--line);background:#F0F2F5;display:flex;align-items:center;justify-content:center;font-size:22px;">'+(isVideo?"🎬":"🖼")+'</div>';
+      } else {
+        media = isVideo ? '<video src="'+item.dataUrl+'" muted></video>' : '<img src="'+item.dataUrl+'">';
+      }
+      div.innerHTML = media + '<div class="name">'+item.name+(item.dataUrl?'':'（僅上傳者本機可見）')+'</div><button type="button" class="rm no-print">✕</button>';
+      div.querySelector(".rm").addEventListener("click", function(){
+        list.splice(idx,1);
+        renderThumbs(list, containerId, isVideo);
+      });
+      el.appendChild(div);
+    });
+  }
+  document.getElementById("photoInput").addEventListener("change", function(e){
+    Array.from(e.target.files).forEach(function(f){
+      readFileAsDataURL(f, function(url){ photos.push({name:f.name, dataUrl:url}); renderThumbs(photos,"photoThumbs",false); });
+    });
+    e.target.value = "";
+  });
+  document.getElementById("videoInput").addEventListener("change", function(e){
+    Array.from(e.target.files).forEach(function(f){
+      readFileAsDataURL(f, function(url){ videos.push({name:f.name, dataUrl:url}); renderThumbs(videos,"videoThumbs",true); });
+    });
+    e.target.value = "";
+  });
+
+  /* ---------------- Log File 上傳 ---------------- */
+  var logs = [];
+  function formatBytes(n){
+    if (!n && n!==0) return "";
+    if (n<1024) return n+" B";
+    if (n<1024*1024) return (n/1024).toFixed(1)+" KB";
+    return (n/1024/1024).toFixed(1)+" MB";
+  }
+  function renderLogs(){
+    var el = document.getElementById("logList");
+    el.innerHTML = "";
+    if (!logs.length){ return; }
+    logs.forEach(function(item, idx){
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:6px 10px;border:1px solid var(--line);border-radius:5px;margin-bottom:6px;font-size:12px;background:#FAFBFC;";
+      var downloadBtn = item.dataUrl
+        ? '<a href="'+item.dataUrl+'" download="'+escAttr(item.name)+'" class="btn btn-outline btn-sm" style="border-color:var(--line);color:var(--steel);text-decoration:none;">下載</a>'
+        : '<span style="color:#8A98A8;font-size:11px;">僅上傳者本機可下載</span>';
+      row.innerHTML =
+        '<span style="flex:1;word-break:break-all;">📄 '+item.name+' <span style="color:#8A98A8;">('+formatBytes(item.size)+')</span></span>'+
+        downloadBtn+
+        '<button type="button" class="btn btn-outline btn-sm no-print rm-log" style="border-color:var(--red);color:var(--red);">刪除</button>';
+      row.querySelector(".rm-log").addEventListener("click", function(){ logs.splice(idx,1); renderLogs(); });
+      el.appendChild(row);
+    });
+  }
+  document.getElementById("logInput").addEventListener("change", function(e){
+    Array.from(e.target.files).forEach(function(f){
+      readFileAsDataURL(f, function(url){ logs.push({name:f.name, size:f.size, dataUrl:url}); renderLogs(); });
+    });
+    e.target.value = "";
+  });
+
+  /* ---------------- 關鍵字標籤 ---------------- */
+  var keywords = [];
+  function renderKeywords(){
+    var box = document.getElementById("keywordBox");
+    Array.from(box.querySelectorAll(".kw")).forEach(function(n){ n.remove(); });
+    var input = document.getElementById("keywordInput");
+    keywords.forEach(function(kw, idx){
+      var span = document.createElement("span");
+      span.className = "kw";
+      span.innerHTML = kw + ' <button type="button">✕</button>';
+      span.querySelector("button").addEventListener("click", function(){ keywords.splice(idx,1); renderKeywords(); refreshSimilar(); });
+      box.insertBefore(span, input);
+    });
+  }
+  document.getElementById("keywordInput").addEventListener("keydown", function(e){
+    if (e.key==="Enter" && this.value.trim()){
+      e.preventDefault();
+      keywords.push(this.value.trim());
+      this.value = "";
+      renderKeywords();
+      refreshSimilar();
+    }
+  });
+
+  /* ---------------- 星等 ---------------- */
+  var starsEl = document.getElementById("f_stars");
+  var starValue = 5;
+  function renderStars(){
+    starsEl.innerHTML = "";
+    for (var i=1;i<=5;i++){
+      var s = document.createElement("span");
+      s.textContent = "★";
+      if (i<=starValue) s.classList.add("on");
+      (function(i){ s.addEventListener("click", function(){ starValue=i; renderStars(); }); })(i);
+      starsEl.appendChild(s);
+    }
+  }
+  renderStars();
+
+  /* ---------------- 表單 <-> 資料物件 ---------------- */
+  function collectForm(){
+    var checkSteps = [];
+    document.querySelectorAll("#checkStepsBody select").forEach(function(sel, i){
+      checkSteps.push({step:i+1, item:CHECK_STEPS[i], result:sel.value});
+    });
+    var parts = [];
+    document.querySelectorAll("#partsBody tr").forEach(function(tr){
+      parts.push({
+        partNo: tr.querySelector(".part-no").value,
+        partName: tr.querySelector(".part-name").value,
+        sn: tr.querySelector(".part-sn").value,
+        qty: tr.querySelector(".part-qty").value
+      });
+    });
+    var measurements = [];
+    document.querySelectorAll("#measureBody tr").forEach(function(tr){
+      measurements.push({
+        item: tr.querySelector(".meas-item").value,
+        value: tr.querySelector(".meas-value").value,
+        spec: tr.querySelector(".meas-spec").value
+      });
+    });
+    function checkedValues(name){
+      return Array.from(document.querySelectorAll('input[name="'+name+'"]:checked')).map(function(i){return i.value;});
+    }
+    function radioValue(name){
+      var el = document.querySelector('input[name="'+name+'"]:checked');
+      return el ? el.value : "";
+    }
+    return {
+      basic:{
+        caseId: document.getElementById("f_caseId").value,
+        date: document.getElementById("f_date").value,
+        customer: document.getElementById("f_customer").value,
+        site: document.getElementById("f_site").value,
+        machineModel: document.getElementById("f_machineModel").value,
+        robotModel: document.getElementById("f_robotModel").value,
+        robotSN: document.getElementById("f_robotSN").value,
+        engineer: document.getElementById("f_engineer").value,
+        repairType: radioValue("repairType")
+      },
+      fault:{
+        errorCode: document.getElementById("f_errorCode").value,
+        alarmMessage: document.getElementById("f_alarmMsg").value,
+        occurTime: document.getElementById("f_occurTime").value,
+        frequency: radioValue("frequency"),
+        condition: document.getElementById("f_condition").value,
+        customerDesc: document.getElementById("f_customerDesc").value
+      },
+      symptom: document.getElementById("f_symptom").value,
+      prelim: checkedValues("prelim"),
+      checkSteps: checkSteps,
+      parts: parts,
+      rootCause: document.getElementById("f_rootCause").value,
+      improvement: document.getElementById("f_improvement").value,
+      testResults: checkedValues("testResults"),
+      measurements: measurements,
+      attachments:{ tags: checkedValues("attachTags"), photos: photos, videos: videos, logs: logs },
+      aiTags:{
+        category: document.getElementById("f_category").value,
+        partsReplacedSummary: document.getElementById("f_partsReplacedSummary").value,
+        robotAxis: checkedValues("robotAxis"),
+        repairTime: document.getElementById("f_repairTime").value,
+        difficulty: document.getElementById("f_difficulty").value,
+        keywords: keywords.slice(),
+        sop: document.getElementById("f_sop").value,
+        recurrence: document.getElementById("f_recurrence").value,
+        createCase: document.getElementById("f_createCase").value,
+        createSOP: document.getElementById("f_createSOP").value
+      },
+      aiSummary:{
+        caseSummary: document.getElementById("f_caseSummary").value,
+        causeSummary: document.getElementById("f_causeSummary").value,
+        bestProcess: document.getElementById("f_bestProcess").value,
+        prevention: document.getElementById("f_prevention").value,
+        recommendRating: starValue
+      }
+    };
+  }
+
+  function fillForm(rec){
+    document.getElementById("f_caseId").value = rec.basic.caseId||"";
+    document.getElementById("caseIdDisplay").textContent = "Case ID：" + (rec.basic.caseId||"草稿");
+    document.getElementById("f_date").value = rec.basic.date||"";
+    document.getElementById("f_customer").value = rec.basic.customer||"";
+    document.getElementById("f_site").value = rec.basic.site||"";
+    document.getElementById("f_machineModel").value = rec.basic.machineModel||"";
+    document.getElementById("f_robotModel").value = rec.basic.robotModel||"";
+    document.getElementById("f_robotSN").value = rec.basic.robotSN||"";
+    document.getElementById("f_engineer").value = rec.basic.engineer||"";
+    setRadio("repairType", rec.basic.repairType);
+
+    document.getElementById("f_errorCode").value = rec.fault.errorCode||"";
+    document.getElementById("f_alarmMsg").value = rec.fault.alarmMessage||"";
+    document.getElementById("f_occurTime").value = rec.fault.occurTime||"";
+    setRadio("frequency", rec.fault.frequency);
+    document.getElementById("f_condition").value = rec.fault.condition||"";
+    document.getElementById("f_customerDesc").value = rec.fault.customerDesc||"";
+
+    document.getElementById("f_symptom").value = rec.symptom||"";
+    setChecks("prelim", rec.prelim||[]);
+    rebuildCheckSteps(rec.checkSteps);
+
+    document.getElementById("partsBody").innerHTML = "";
+    (rec.parts&&rec.parts.length?rec.parts:[{}]).forEach(partRow);
+
+    document.getElementById("f_rootCause").value = rec.rootCause||"";
+    document.getElementById("f_improvement").value = rec.improvement||"";
+    setChecks("testResults", rec.testResults||[]);
+    rebuildMeasures(rec.measurements);
+
+    setChecks("attachTags", (rec.attachments&&rec.attachments.tags)||[]);
+    photos = (rec.attachments&&rec.attachments.photos)||[];
+    videos = (rec.attachments&&rec.attachments.videos)||[];
+    logs = (rec.attachments&&rec.attachments.logs)||[];
+    if (CLOUD_ENABLED){
+      // 雲端模式下，附件原始檔沒有存在雲端，先看看這台瀏覽器本機是否有快取的完整版本（例如自己剛上傳的）
+      var attachCache = loadAttachCache();
+      var cachedAttach = attachCache[rec.basic.caseId];
+      if (cachedAttach){
+        photos = cachedAttach.photos||photos;
+        videos = cachedAttach.videos||videos;
+        logs = cachedAttach.logs||logs;
+      }
+    }
+    renderLogs();
+    renderThumbs(photos,"photoThumbs",false);
+    renderThumbs(videos,"videoThumbs",true);
+
+    document.getElementById("f_category").value = (rec.aiTags&&rec.aiTags.category)||"";
+    document.getElementById("f_partsReplacedSummary").value = (rec.aiTags&&rec.aiTags.partsReplacedSummary)||"";
+    setChecks("robotAxis", (rec.aiTags&&rec.aiTags.robotAxis)||[]);
+    document.getElementById("f_repairTime").value = (rec.aiTags&&rec.aiTags.repairTime)||"";
+    document.getElementById("f_difficulty").value = (rec.aiTags&&rec.aiTags.difficulty)||"";
+    keywords = ((rec.aiTags&&rec.aiTags.keywords)||[]).slice();
+    renderKeywords();
+    document.getElementById("f_sop").value = (rec.aiTags&&rec.aiTags.sop)||"";
+    document.getElementById("f_recurrence").value = (rec.aiTags&&rec.aiTags.recurrence)||"";
+    document.getElementById("f_createCase").value = (rec.aiTags&&rec.aiTags.createCase)||"";
+    document.getElementById("f_createSOP").value = (rec.aiTags&&rec.aiTags.createSOP)||"";
+
+    document.getElementById("f_caseSummary").value = (rec.aiSummary&&rec.aiSummary.caseSummary)||"";
+    document.getElementById("f_causeSummary").value = (rec.aiSummary&&rec.aiSummary.causeSummary)||"";
+    document.getElementById("f_bestProcess").value = (rec.aiSummary&&rec.aiSummary.bestProcess)||"";
+    document.getElementById("f_prevention").value = (rec.aiSummary&&rec.aiSummary.prevention)||"";
+    starValue = (rec.aiSummary&&rec.aiSummary.recommendRating)||5;
+    renderStars();
+  }
+
+  function setRadio(name, value){
+    document.querySelectorAll('input[name="'+name+'"]').forEach(function(inp){
+      inp.checked = (inp.value===value);
+      inp.closest(".chip").classList.toggle("on", inp.checked);
+    });
+  }
+  function setChecks(name, values){
+    document.querySelectorAll('input[name="'+name+'"]').forEach(function(inp){
+      inp.checked = values.indexOf(inp.value)>=0;
+      inp.closest(".chip").classList.toggle("on", inp.checked);
+    });
+  }
+
+  function resetForm(){
+    current = null;
+    document.querySelectorAll("input[type=text], input[type=date], input[type=number], textarea").forEach(function(i){ i.value=""; });
+    document.querySelectorAll("select").forEach(function(s){ s.value=""; });
+    document.querySelectorAll('input[type=checkbox], input[type=radio]').forEach(function(i){ i.checked=false; i.closest(".chip").classList.remove("on"); });
+    photos=[]; videos=[]; logs=[]; keywords=[]; starValue=5;
+    renderThumbs(photos,"photoThumbs",false);
+    renderThumbs(videos,"videoThumbs",true);
+    renderLogs();
+    renderKeywords(); renderStars();
+    document.getElementById("partsBody").innerHTML=""; partRow();
+    rebuildCheckSteps(); rebuildMeasures();
+    var id = newCaseId();
+    document.getElementById("f_caseId").value = id;
+    document.getElementById("caseIdDisplay").textContent = "Case ID："+id;
+    document.getElementById("f_date").value = new Date().toISOString().slice(0,10);
+    refreshSimilar();
+  }
+
+  /* ---------------- 儲存 / 案例清單 ---------------- */
+  function toast(msg){
+    var t = document.getElementById("toast");
+    t.textContent = msg; t.classList.add("show");
+    clearTimeout(toast._t);
+    toast._t = setTimeout(function(){ t.classList.remove("show"); }, 2200);
+  }
+
+  document.getElementById("btnSave").addEventListener("click", function(){
+    var rec = collectForm();
+    if (!rec.basic.caseId){ rec.basic.caseId = newCaseId(); }
+    var existingIdx = db.findIndex(function(c){ return c.basic.caseId===rec.basic.caseId; });
+    rec.savedAt = new Date().toISOString();
+    if (existingIdx>=0){ db[existingIdx]=rec; } else { db.push(rec); }
+    persistLocal();
+    fillForm(rec);
+    renderCaseList();
+    refreshErrorCodeList();
+    refreshEditableDatalists();
+
+    if (CLOUD_ENABLED && firestoreDB){
+      var cache = loadAttachCache();
+      cache[rec.basic.caseId] = rec.attachments;
+      saveAttachCache(cache);
+      firestoreDB.collection("repair_cases").doc(rec.basic.caseId).set(stripHeavyAttachments(rec))
+        .then(function(){ toast("已同步至共用雲端資料庫（"+rec.basic.caseId+"）。照片/影片/Log原始檔僅保留在你的瀏覽器中。"); })
+        .catch(function(err){ toast("雲端同步失敗，已存在本機："+err.message); });
+    } else {
+      toast("已儲存至 AI Repair Case 資料庫（"+rec.basic.caseId+"）。記得按「匯出資料庫(.js)」更新 repair_cases_data.js 檔案。");
+    }
+  });
+
+  document.getElementById("btnNew").addEventListener("click", resetForm);
+  document.getElementById("btnPrint").addEventListener("click", function(){ window.print(); });
+
+  function renderCaseList(filter){
+    var listEl = document.getElementById("caseList");
+    listEl.innerHTML = "";
+    var items = db.slice().reverse();
+    if (filter){
+      var f = filter.toLowerCase();
+      items = items.filter(function(c){
+        var hay = [c.basic.caseId, c.basic.customer, c.fault.errorCode, (c.aiTags&&c.aiTags.keywords||[]).join(" ")].join(" ").toLowerCase();
+        return hay.indexOf(f)>=0;
+      });
+    }
+    if (!items.length){ listEl.innerHTML = '<div class="empty-hint">尚無符合的案例</div>'; return; }
+    items.forEach(function(c){
+      var div = document.createElement("div");
+      div.className = "case-item";
+      div.innerHTML =
+        '<div class="l1"><span>'+(c.basic.caseId||"—")+'</span><span>'+(c.basic.date||"")+'</span></div>'+
+        '<div class="l2">'+(c.basic.customer||"客戶未填")+' ・ '+(c.fault.errorCode||"無 Error Code")+'</div>'+
+        (c.aiTags&&c.aiTags.category ? '<span class="tag">'+c.aiTags.category+'</span>' : '');
+      div.addEventListener("click", function(){
+        fillForm(c); refreshSimilar();
+        document.getElementById("sec1").scrollIntoView({behavior:"smooth", block:"start"});
+      });
+      listEl.appendChild(div);
+    });
+  }
+  document.getElementById("searchBox").addEventListener("input", function(){ renderCaseList(this.value); });
+
+  function refreshErrorCodeList(){
+    var dl = document.getElementById("dl_errorCode");
+    var codes = Array.from(new Set(db.map(function(c){return c.fault.errorCode;}).filter(Boolean)));
+    dl.innerHTML = codes.map(function(c){return '<option value="'+escAttr(c)+'">';}).join("");
+  }
+
+  var CUSTOMER_SEED = ["旺矽","ASM","科豐","日月光","台積電","研發樣機"];
+  var MACHINE_MODEL_SEED = ["SCARA ROBOT","PLP ROBOT","HMJ ROBOT"];
+  function refreshEditableDatalists(){
+    function fillDL(id, values){
+      var dl = document.getElementById(id);
+      dl.innerHTML = Array.from(new Set(values.filter(Boolean))).map(function(v){return '<option value="'+escAttr(v)+'">';}).join("");
+    }
+    fillDL("dl_customer", CUSTOMER_SEED.concat(db.map(function(c){return c.basic.customer;})));
+    fillDL("dl_site", db.map(function(c){return c.basic.site;}));
+    fillDL("dl_robotModel", db.map(function(c){return c.basic.robotModel;}));
+    fillDL("dl_machineModel", MACHINE_MODEL_SEED);
+  }
+
+  /* ---------------- AI 相似案例建議（規則式比對） ---------------- */
+  function refreshSimilar(){
+    var errorCode = document.getElementById("f_errorCode").value.trim().toLowerCase();
+    var category = document.getElementById("f_category").value;
+    var kw = keywords.map(function(k){return k.toLowerCase();});
+    var axis = Array.from(document.querySelectorAll('input[name="robotAxis"]:checked')).map(function(i){return i.value;});
+    var curId = document.getElementById("f_caseId").value;
+
+    if (!errorCode && !category && !kw.length && !axis.length){
+      document.getElementById("simList").innerHTML = '<div class="empty-hint">請於「異常資訊」與「AI 知識庫標籤」填寫 Error Code / 故障分類 / 關鍵字，系統將自動比對過往案例。</div>';
+      return;
+    }
+
+    var scored = db.filter(function(c){ return c.basic.caseId!==curId; }).map(function(c){
+      var score = 0;
+      var cErr = (c.fault.errorCode||"").toLowerCase();
+      if (errorCode && cErr){
+        if (cErr===errorCode) score += 50;
+        else if (cErr.indexOf(errorCode)>=0 || errorCode.indexOf(cErr)>=0) score += 25;
+      }
+      if (category && c.aiTags && c.aiTags.category===category) score += 20;
+      var cAxis = (c.aiTags&&c.aiTags.robotAxis)||[];
+      axis.forEach(function(a){ if (cAxis.indexOf(a)>=0) score += 8; });
+      var cKw = ((c.aiTags&&c.aiTags.keywords)||[]).map(function(k){return k.toLowerCase();});
+      kw.forEach(function(k){ if (cKw.indexOf(k)>=0) score += 10; });
+      return {rec:c, score:score};
+    }).filter(function(s){ return s.score>0; })
+      .sort(function(a,b){ return b.score-a.score; })
+      .slice(0,5);
+
+    var el = document.getElementById("simList");
+    if (!scored.length){
+      el.innerHTML = '<div class="empty-hint">尚無相似歷史案例。</div>';
+      return;
+    }
+    el.innerHTML = "";
+    scored.forEach(function(s){
+      var c = s.rec;
+      var div = document.createElement("div");
+      div.className = "sim-card";
+      div.innerHTML =
+        '<div><span class="score">相似度 '+Math.min(s.score,100)+'</span> ・ '+(c.basic.caseId||"")+'</div>'+
+        '<div style="margin-top:4px;color:var(--ink);">'+(c.fault.errorCode||"—")+' ・ '+(c.aiTags&&c.aiTags.category||"—")+'</div>'+
+        '<div style="margin-top:4px;color:var(--ink-soft);">Root Cause：'+truncate(c.rootCause,60)+'</div>'+
+        '<button type="button" class="btn btn-outline btn-sm apply no-print" style="border-color:#F0C583;color:#8A5300;">套用建議至 Root Cause / 改善措施</button>';
+      div.querySelector(".apply").addEventListener("click", function(){
+        if (c.rootCause) document.getElementById("f_rootCause").value = "[參考 "+c.basic.caseId+"] " + c.rootCause;
+        if (c.improvement) document.getElementById("f_improvement").value = "[參考 "+c.basic.caseId+"] " + c.improvement;
+        toast("已套用 "+c.basic.caseId+" 的建議內容，請依實際狀況調整。");
+      });
+      el.appendChild(div);
+    });
+  }
+  function truncate(s,n){ s=s||""; return s.length>n ? s.slice(0,n)+"…" : (s||"—"); }
+
+  ["f_errorCode"].forEach(function(id){ document.getElementById(id).addEventListener("input", refreshSimilar); });
+  document.getElementById("f_category").addEventListener("change", refreshSimilar);
+
+  /* ---------------- 匯出 / 匯入 資料庫 (.js) ---------------- */
+  document.getElementById("btnExport").addEventListener("click", function(){
+    var content = "// Robot 維修紀錄表 AI 版 - 案例資料庫\n// 匯出時間：" + new Date().toLocaleString() +
+      "\n// 使用方式：將此檔案與主表單 HTML 放在同一資料夾，命名為 repair_cases_data.js 即可自動載入。\n" +
+      "window.ROBOT_REPAIR_CASES = " + JSON.stringify(db, null, 2) + ";\n";
+    var blob = new Blob([content], {type:"application/javascript"});
+    var a = document.createElement("a");
+    a.href = URL.createObjectURL(blob);
+    a.download = "repair_cases_data.js";
+    document.body.appendChild(a); a.click(); document.body.removeChild(a);
+    toast("已匯出 repair_cases_data.js，請覆蓋至平台資料夾中。");
+  });
+
+  document.getElementById("btnImport").addEventListener("click", function(){ document.getElementById("fileImport").click(); });
+  document.getElementById("fileImport").addEventListener("change", function(e){
+    var file = e.target.files[0];
+    if (!file) return;
+    var reader = new FileReader();
+    reader.onload = function(){
+      try{
+        var text = reader.result;
+        var sandbox = {};
+        (new Function("window", text))(sandbox);
+        var imported = sandbox.ROBOT_REPAIR_CASES;
+        if (!Array.isArray(imported)) throw new Error("格式不正確");
+        db = imported;
+        persistLocal();
+        renderCaseList();
+        refreshErrorCodeList();
+    refreshEditableDatalists();
+        toast("已匯入 "+db.length+" 筆案例。");
+      }catch(err){
+        toast("匯入失敗：檔案格式不正確（"+err.message+"）");
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = "";
+  });
+
+  /* ---------------- 初始化 ---------------- */
+  renderCaseList();
+  refreshErrorCodeList();
+    refreshEditableDatalists();
+  resetForm();
+  initCloud();
+
+})();
+</script>
+</body>
+</html>
