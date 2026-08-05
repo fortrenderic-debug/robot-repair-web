@@ -414,13 +414,12 @@
      六個欄位維持空字串 "" 時，程式會自動使用「本機模式」，跟以前一樣靠匯出/匯入 .js 檔運作。
   ------------------------------------------------------------------------------ */
   var FIREBASE_CONFIG = {
-    apiKey: "AIzaSyDA44bC78GhhvoZU1Q52fi0baXW532paDM",
-    authDomain: "robot-repair-db.firebaseapp.com",
-    projectId: "robot-repair-db",
-    storageBucket: "robot-repair-db.firebasestorage.app",
-    messagingSenderId: "664709764263",
-    appId: "1:664709764263:web:b50fd52b60e5d032f07782",
-    measurementId: "G-FK62T8TDES"
+    apiKey: "",
+    authDomain: "",
+    projectId: "",
+    storageBucket: "",
+    messagingSenderId: "",
+    appId: ""
   };
   var CLOUD_ENABLED = !!(FIREBASE_CONFIG.apiKey && FIREBASE_CONFIG.projectId);
   var firestoreDB = null;
@@ -1065,12 +1064,31 @@
         (new Function("window", text))(sandbox);
         var imported = sandbox.ROBOT_REPAIR_CASES;
         if (!Array.isArray(imported)) throw new Error("格式不正確");
-        db = imported;
-        persistLocal();
-        renderCaseList();
-        refreshErrorCodeList();
-    refreshEditableDatalists();
-        toast("已匯入 "+db.length+" 筆案例。");
+
+        if (CLOUD_ENABLED && firestoreDB){
+          if (!confirm("目前為雲端共用模式，匯入的 "+imported.length+" 筆案例會寫入共用資料庫，所有人都會看到。確定要匯入嗎？")){
+            e.target.value = "";
+            return;
+          }
+          toast("匯入中，寫入共用資料庫，請稍候...");
+          var batch = firestoreDB.batch();
+          imported.forEach(function(rec){
+            var ref = firestoreDB.collection("repair_cases").doc(rec.basic.caseId);
+            batch.set(ref, stripHeavyAttachments(rec));
+          });
+          batch.commit().then(function(){
+            toast("已匯入 "+imported.length+" 筆案例至共用雲端資料庫。");
+          }).catch(function(err){
+            toast("匯入雲端失敗："+err.message);
+          });
+        } else {
+          db = imported;
+          persistLocal();
+          renderCaseList();
+          refreshErrorCodeList();
+          refreshEditableDatalists();
+          toast("已匯入 "+db.length+" 筆案例。");
+        }
       }catch(err){
         toast("匯入失敗：檔案格式不正確（"+err.message+"）");
       }
