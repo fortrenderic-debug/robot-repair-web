@@ -244,8 +244,16 @@
 
     <!-- 四、初步判斷 -->
     <div class="card" id="sec4">
-      <h2>四、初步判斷</h2>
+      <h2>四、初步判斷 <button type="button" class="btn btn-outline btn-sm no-print" id="btnEditCategories" style="border-color:var(--line);color:var(--steel);font-weight:400;margin-left:8px;vertical-align:middle;">⚙ 編輯分類清單</button></h2>
       <div class="chipgroup" id="f_prelim"></div>
+      <div id="categoryEditor" style="display:none;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
+        <div class="hint" style="margin:0 0 8px 0;">新增、修改或刪除故障分類，會同步套用到「初步判斷」與「AI知識庫標籤 > 故障分類」。刪除分類不會影響已存在案例中記錄的舊分類文字。</div>
+        <div id="categoryEditorList"></div>
+        <div style="display:flex;gap:8px;margin-top:8px;">
+          <input type="text" id="newCategoryInput" placeholder="輸入新分類名稱" style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;">
+          <button type="button" class="btn btn-amber btn-sm" id="btnAddCategory">＋ 新增</button>
+        </div>
+      </div>
     </div>
 
     <!-- 五、檢查流程 -->
@@ -328,6 +336,7 @@
         <div class="field"><label>故障分類</label>
           <select id="f_category"></select>
         </div>
+
         <div class="field"><label>更換零件（摘要）</label><input type="text" id="f_partsReplacedSummary"></div>
         <div class="field"><label>Repair Time（分鐘）</label><input type="number" id="f_repairTime" min="0"></div>
         <div class="field"><label>Difficulty</label>
@@ -384,7 +393,19 @@
   "use strict";
 
   /* ---------------- 靜態選項定義 ---------------- */
-  var CATEGORY_OPTIONS = ["Sensor","Motor","Servo Driver","Encoder","Vacuum","Air Pressure","Cable","IO Board","Controller","Mechanical","Software","Unknown"];
+  var DEFAULT_CATEGORY_OPTIONS = ["Sensor","Motor","Servo Driver","Encoder","Vacuum","Air Pressure","Cable","IO Board","Controller","Mechanical","Software","Unknown"];
+  var CATEGORY_KEY = "robot_repair_categories_v1";
+  function loadCategories(){
+    try{
+      var raw = localStorage.getItem(CATEGORY_KEY);
+      if (raw){ var arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) return arr; }
+    }catch(e){}
+    return DEFAULT_CATEGORY_OPTIONS.slice();
+  }
+  function saveCategories(){
+    try{ localStorage.setItem(CATEGORY_KEY, JSON.stringify(CATEGORY_OPTIONS)); }catch(e){}
+  }
+  var CATEGORY_OPTIONS = loadCategories();
   var TEST_RESULT_OPTIONS = ["Home OK","Pick OK","Place OK","Vacuum OK","Mapping OK","Dry Run OK","Production OK"];
   var ATTACH_OPTIONS = ["Alarm Screenshot","Servo Waveform","Error Log","Camera Photo","Before Repair","After Repair","Video"];
   var AXIS_OPTIONS = ["Z1 (SCARA)","Z2 (SCARA)","Theta (SCARA)","R1 (SCARA)","R2 (SCARA)","Track (SCARA)","J1 (HMJ)","J2 (HMJ)","R1 (HMJ)","R2 (HMJ)","Z1 (HMJ)","Z2 (HMJ)"];
@@ -481,6 +502,17 @@
         setCloudStatus("error");
         toast("雲端資料庫連線失敗，已切換為本機模式："+err.message);
       });
+      firestoreDB.collection("app_config").doc("categories").onSnapshot(function(doc){
+        if (doc.exists && Array.isArray(doc.data().list) && doc.data().list.length){
+          CATEGORY_OPTIONS = doc.data().list;
+        } else {
+          // 雲端還沒有分類清單，用目前本機的清單當初始值寫進去
+          firestoreDB.collection("app_config").doc("categories").set({list: CATEGORY_OPTIONS}).catch(function(e){ console.error(e); });
+        }
+        saveCategories();
+        rebuildCategoryUI();
+        renderCategoryEditor();
+      }, function(err){ console.error(err); });
     }catch(e){
       console.error(e);
       setCloudStatus("error");
@@ -537,6 +569,80 @@
 
   var catSelect = document.getElementById("f_category");
   catSelect.innerHTML = '<option value="">請選擇</option>' + CATEGORY_OPTIONS.map(function(c){return '<option>'+c+'</option>';}).join("");
+
+  /* ---------------- 故障分類：新增／修改／刪除 ---------------- */
+  function persistCategories(){
+    saveCategories();
+    if (CLOUD_ENABLED && firestoreDB){
+      firestoreDB.collection("app_config").doc("categories").set({list: CATEGORY_OPTIONS})
+        .catch(function(e){ toast("分類同步至雲端失敗："+e.message); });
+    }
+  }
+  function rebuildCategoryUI(){
+    var checkedPrelim = Array.from(document.querySelectorAll('input[name="prelim"]:checked')).map(function(i){return i.value;});
+    var currentCat = catSelect.value;
+    buildChipGroup("f_prelim", CATEGORY_OPTIONS, "prelim", true);
+    setChecks("prelim", checkedPrelim);
+    catSelect.innerHTML = '<option value="">請選擇</option>' + CATEGORY_OPTIONS.map(function(c){return '<option>'+c+'</option>';}).join("");
+    catSelect.value = CATEGORY_OPTIONS.indexOf(currentCat)>=0 ? currentCat : "";
+  }
+  function renderCategoryEditor(){
+    var listEl = document.getElementById("categoryEditorList");
+    listEl.innerHTML = "";
+    CATEGORY_OPTIONS.forEach(function(cat, idx){
+      var row = document.createElement("div");
+      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 0;";
+      row.innerHTML =
+        '<input type="text" value="'+escAttr(cat)+'" style="flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:5px;">'+
+        '<button type="button" class="btn btn-outline btn-sm" style="border-color:var(--line);color:var(--steel);">重新命名</button>'+
+        '<button type="button" class="btn btn-outline btn-sm" style="border-color:var(--red);color:var(--red);">刪除</button>';
+      var input = row.querySelector('input');
+      var renameBtn = row.querySelectorAll('button')[0];
+      var deleteBtn = row.querySelectorAll('button')[1];
+      renameBtn.addEventListener("click", function(){
+        var newName = input.value.trim();
+        if (!newName){ toast("分類名稱不能空白"); return; }
+        if (newName===cat){ return; }
+        if (CATEGORY_OPTIONS.indexOf(newName)>=0){ toast("已經有相同名稱的分類了"); return; }
+        CATEGORY_OPTIONS[idx] = newName;
+        persistCategories();
+        rebuildCategoryUI();
+        renderCategoryEditor();
+        toast("已將「"+cat+"」重新命名為「"+newName+"」（不會改動已儲存案例中的舊名稱）");
+      });
+      deleteBtn.addEventListener("click", function(){
+        if (!confirm('確定要刪除分類「'+cat+'」嗎？已儲存案例中記錄的這個分類名稱不會被刪除或變動，只是往後無法再選擇這個選項。')) return;
+        CATEGORY_OPTIONS.splice(idx,1);
+        persistCategories();
+        rebuildCategoryUI();
+        renderCategoryEditor();
+        toast("已刪除分類「"+cat+"」");
+      });
+      listEl.appendChild(row);
+    });
+  }
+  document.getElementById("btnEditCategories").addEventListener("click", function(){
+    var panel = document.getElementById("categoryEditor");
+    var show = panel.style.display === "none";
+    panel.style.display = show ? "block" : "none";
+    if (show) renderCategoryEditor();
+  });
+  function addCategoryFromInput(){
+    var input = document.getElementById("newCategoryInput");
+    var name = input.value.trim();
+    if (!name){ return; }
+    if (CATEGORY_OPTIONS.indexOf(name)>=0){ toast("這個分類已經存在了"); return; }
+    CATEGORY_OPTIONS.push(name);
+    persistCategories();
+    rebuildCategoryUI();
+    renderCategoryEditor();
+    input.value = "";
+    toast("已新增分類「"+name+"」");
+  }
+  document.getElementById("btnAddCategory").addEventListener("click", addCategoryFromInput);
+  document.getElementById("newCategoryInput").addEventListener("keydown", function(e){
+    if (e.key==="Enter"){ e.preventDefault(); addCategoryFromInput(); }
+  });
 
   function checkStepRow(step, item, value){
     var tr = document.createElement("tr");
