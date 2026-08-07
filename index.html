@@ -115,6 +115,16 @@
   #toast{position:fixed;bottom:22px;left:50%;transform:translateX(-50%);background:var(--ink);color:#fff;padding:11px 20px;border-radius:6px;font-size:13px;box-shadow:0 6px 20px rgba(0,0,0,.25);opacity:0;pointer-events:none;transition:opacity .25s, transform .25s;z-index:100;}
   #toast.show{opacity:1;transform:translateX(-50%) translateY(-6px);}
 
+  /* ---- Category Manager Modal ---- */
+  .modal-overlay{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.4);display:none;align-items:center;justify-content:center;z-index:200;}
+  .modal-overlay.show{display:flex;}
+  .modal{background:#fff;border-radius:8px;padding:20px;width:380px;max-width:90%;box-shadow:0 10px 25px rgba(0,0,0,0.2);}
+  .modal h3{margin-bottom:12px;font-size:16px;color:var(--steel);}
+  .cat-list-manage{max-height:220px;overflow-y:auto;border:1px solid var(--line);border-radius:5px;padding:6px;margin-bottom:12px;}
+  .cat-item-row{display:flex;align-items:center;gap:8px;margin-bottom:6px;}
+  .cat-item-row input{flex:1;padding:4px 8px;}
+  .modal-actions{display:flex;justify-content:flex-end;gap:8px;}
+
   @media print{
     #topbar,#sidebar,.quicknav,.upload-zone,.no-print,.add-row{display:none !important;}
     #layout{grid-template-columns:1fr;}
@@ -244,16 +254,8 @@
 
     <!-- 四、初步判斷 -->
     <div class="card" id="sec4">
-      <h2>四、初步判斷 <button type="button" class="btn btn-outline btn-sm no-print" id="btnEditCategories" style="border-color:var(--line);color:var(--steel);font-weight:400;margin-left:8px;vertical-align:middle;">⚙ 編輯分類清單</button></h2>
+      <h2>四、初步判斷</h2>
       <div class="chipgroup" id="f_prelim"></div>
-      <div id="categoryEditor" style="display:none;margin-top:14px;padding:12px;border:1px solid var(--line);border-radius:6px;background:var(--paper);">
-        <div class="hint" style="margin:0 0 8px 0;">新增、修改或刪除故障分類，會同步套用到「初步判斷」與「AI知識庫標籤 > 故障分類」。刪除分類不會影響已存在案例中記錄的舊分類文字。</div>
-        <div id="categoryEditorList"></div>
-        <div style="display:flex;gap:8px;margin-top:8px;">
-          <input type="text" id="newCategoryInput" placeholder="輸入新分類名稱" style="flex:1;padding:7px 9px;border:1px solid var(--line);border-radius:5px;">
-          <button type="button" class="btn btn-amber btn-sm" id="btnAddCategory">＋ 新增</button>
-        </div>
-      </div>
     </div>
 
     <!-- 五、檢查流程 -->
@@ -333,10 +335,14 @@
     <div class="card" id="sec12">
       <h2>十二、AI 知識庫標籤（非常重要）</h2>
       <div class="grid2">
-        <div class="field"><label>故障分類</label>
-          <select id="f_category"></select>
+        <div class="field">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
+            <label style="margin:0;">故障分類</label>
+            <button type="button" class="btn btn-outline btn-sm no-print" id="btnManageCat" style="padding:1px 6px;font-size:11px;">⚙ 管理分類</button>
+          </div>
+          <input type="text" id="f_category" list="dl_category" placeholder="選擇或輸入新故障分類">
+          <datalist id="dl_category"></datalist>
         </div>
-
         <div class="field"><label>更換零件（摘要）</label><input type="text" id="f_partsReplacedSummary"></div>
         <div class="field"><label>Repair Time（分鐘）</label><input type="number" id="f_repairTime" min="0"></div>
         <div class="field"><label>Difficulty</label>
@@ -354,7 +360,7 @@
         </div>
       </div>
       <div class="field"><label>Robot Axis</label>
-        <div class="hint" style="margin:0 0 8px 0;">SCARA：Z1／Z2／Theta／R1／R2／Track　　HMJ：Z1／Z2／J1(=Theta)／J2(=R1)／R1(Rot Down)／R2(Rot Up) — 注意 SCARA 與 HMJ 的 R1／R2 命名不同，請依機型分別勾選</div>
+        <div class="hint" style="margin:0 0 8px 0;">SCARA：Z1／Z2／Theta／R1／R2／Track  HMJ：Z1／Z2／J1(=Theta)／J2(=R1)／R1(Rot Down)／R2(Rot Up) — 注意 SCARA 與 HMJ 的 R1／R2 命名不同，請依機型分別勾選</div>
         <div class="chipgroup" id="f_robotAxis"></div>
       </div>
       <div class="field"><label>關鍵字（Enter 新增）</label>
@@ -379,38 +385,51 @@
   </div>
 </div>
 
+<!-- 分類管理 Modal 快顯視窗 -->
+<div class="modal-overlay" id="catModal">
+  <div class="modal">
+    <h3>管理「故障分類」項目</h3>
+    <div class="cat-list-manage" id="catManageList"></div>
+    <button type="button" class="btn btn-outline btn-sm" id="btnAddCatItem" style="margin-bottom:12px;width:100%;">＋ 新增分類選項</button>
+    <div class="modal-actions">
+      <button type="button" class="btn btn-outline btn-sm" id="btnCloseCatModal">取消</button>
+      <button type="button" class="btn btn-amber btn-sm" id="btnSaveCatModal">確認修改</button>
+    </div>
+  </div>
+</div>
+
 <div id="toast"></div>
 
-<!-- 資料庫來源：若同目錄存在 repair_cases_data.js 會自動載入既有案例，找不到則從空白開始 -->
-<!-- 雲端共用資料庫（選用）：Firebase Firestore SDK。若未設定 FIREBASE_CONFIG，這兩個檔案載入失敗也不影響本機模式運作 -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-
 <script src="repair_cases_data.js" onerror="window.ROBOT_REPAIR_CASES = window.ROBOT_REPAIR_CASES || [];"></script>
 
 <script>
 (function(){
   "use strict";
 
-  /* ---------------- 靜態選項定義 ---------------- */
+  /* ---------------- 靜態選項與快取定義 ---------------- */
+  var CAT_STORAGE_KEY = "robot_repair_custom_categories_v1";
   var DEFAULT_CATEGORY_OPTIONS = ["Sensor","Motor","Servo Driver","Encoder","Vacuum","Air Pressure","Cable","IO Board","Controller","Mechanical","Software","Unknown"];
-  var CATEGORY_KEY = "robot_repair_categories_v1";
-  function loadCategories(){
-    try{
-      var raw = localStorage.getItem(CATEGORY_KEY);
-      if (raw){ var arr = JSON.parse(raw); if (Array.isArray(arr) && arr.length) return arr; }
-    }catch(e){}
+  
+  function getCategoryOptions(){
+    try {
+      var saved = localStorage.getItem(CAT_STORAGE_KEY);
+      if (saved) return JSON.parse(saved);
+    } catch(e){}
     return DEFAULT_CATEGORY_OPTIONS.slice();
   }
-  function saveCategories(){
-    try{ localStorage.setItem(CATEGORY_KEY, JSON.stringify(CATEGORY_OPTIONS)); }catch(e){}
+  function saveCategoryOptions(list){
+    try {
+      localStorage.setItem(CAT_STORAGE_KEY, JSON.stringify(list));
+    } catch(e){}
   }
-  var CATEGORY_OPTIONS = loadCategories();
+
+  var CATEGORY_OPTIONS = getCategoryOptions();
   var TEST_RESULT_OPTIONS = ["Home OK","Pick OK","Place OK","Vacuum OK","Mapping OK","Dry Run OK","Production OK"];
   var ATTACH_OPTIONS = ["Alarm Screenshot","Servo Waveform","Error Log","Camera Photo","Before Repair","After Repair","Video"];
   var AXIS_OPTIONS = ["Z1 (SCARA)","Z2 (SCARA)","Theta (SCARA)","R1 (SCARA)","R2 (SCARA)","Track (SCARA)","J1 (HMJ)","J2 (HMJ)","R1 (HMJ)","R2 (HMJ)","Z1 (HMJ)","Z2 (HMJ)"];
   var CHECK_STEPS = ["Alarm確認","Sensor檢查","IO檢查","Servo狀態","Motor測試","Encoder確認","Cable檢查","Robot Motion Test","Dry Run","Production Test"];
-  var MEASURE_ITEMS = ["Vacuum","Air Pressure","Servo Current","Encoder Count","Position Error","Vibration","Repeatability"];
 
   /* ---------------- 資料庫（記憶體 + localStorage 備援） ---------------- */
   var DB_KEY = "robot_repair_cases_v1";
@@ -428,12 +447,7 @@
     try{ localStorage.setItem(DB_KEY, JSON.stringify(db)); }catch(e){}
   }
 
-  /* ---------------- 雲端共用資料庫（Firebase Firestore，選用） ----------------
-     要讓多人即時共用同一份資料庫，請到 https://console.firebase.google.com 建立專案，
-     啟用 Firestore Database，並把下方六個欄位換成你專案的設定值
-     （專案設定 > 一般 > 你的應用程式 > SDK 設定和設定 可以找到）。
-     六個欄位維持空字串 "" 時，程式會自動使用「本機模式」，跟以前一樣靠匯出/匯入 .js 檔運作。
-  ------------------------------------------------------------------------------ */
+  /* ---------------- 雲端共用資料庫（Firebase Firestore） ---------------- */
   var FIREBASE_CONFIG = {
     apiKey: "AIzaSyDA44bC78GhhvoZU1Q52fi0baXW532paDM",
     authDomain: "robot-repair-db.firebaseapp.com",
@@ -467,8 +481,6 @@
   function saveAttachCache(cache){
     try{ localStorage.setItem(ATTACH_CACHE_KEY, JSON.stringify(cache)); }catch(e){}
   }
-  // 照片/影片/Log 原始檔太大，不適合放進 Firestore（單筆文件上限1MB），
-  // 雲端只同步「已上傳哪些檔案」的清單，原始檔僅保留在上傳者自己的瀏覽器裡
   function stripHeavyAttachments(rec){
     var copy = JSON.parse(JSON.stringify(rec));
     var a = copy.attachments || {tags:[],photos:[],videos:[],logs:[]};
@@ -506,12 +518,11 @@
         if (doc.exists && Array.isArray(doc.data().list) && doc.data().list.length){
           CATEGORY_OPTIONS = doc.data().list;
         } else {
-          // 雲端還沒有分類清單，用目前本機的清單當初始值寫進去
           firestoreDB.collection("app_config").doc("categories").set({list: CATEGORY_OPTIONS}).catch(function(e){ console.error(e); });
         }
-        saveCategories();
-        rebuildCategoryUI();
-        renderCategoryEditor();
+        saveCategoryOptions(CATEGORY_OPTIONS);
+        refreshEditableDatalists();
+        buildChipGroup("f_prelim", CATEGORY_OPTIONS, "prelim", true);
       }, function(err){ console.error(err); });
     }catch(e){
       console.error(e);
@@ -519,8 +530,7 @@
     }
   }
 
-  /* ---------------- 目前案例狀態 ---------------- */
-  var current = null; // 目前表單對應的 record 物件（新案例時為 null）
+  var current = null;
 
   function newCaseId(){
     var d = new Date();
@@ -536,7 +546,7 @@
     return prefix + ("00"+seq).slice(-2);
   }
 
-  /* ---------------- DOM 產生：動態區塊 ---------------- */
+  /* ---------------- DOM 產生 ---------------- */
   function buildChipGroup(containerId, options, name, multi){
     var el = document.getElementById(containerId);
     el.innerHTML = "";
@@ -565,83 +575,6 @@
       inp.closest(".chipgroup").querySelectorAll(".chip").forEach(function(l){ l.classList.remove("on"); });
       inp.closest("label").classList.add("on");
     });
-  });
-
-  var catSelect = document.getElementById("f_category");
-  catSelect.innerHTML = '<option value="">請選擇</option>' + CATEGORY_OPTIONS.map(function(c){return '<option>'+c+'</option>';}).join("");
-
-  /* ---------------- 故障分類：新增／修改／刪除 ---------------- */
-  function persistCategories(){
-    saveCategories();
-    if (CLOUD_ENABLED && firestoreDB){
-      firestoreDB.collection("app_config").doc("categories").set({list: CATEGORY_OPTIONS})
-        .catch(function(e){ toast("分類同步至雲端失敗："+e.message); });
-    }
-  }
-  function rebuildCategoryUI(){
-    var checkedPrelim = Array.from(document.querySelectorAll('input[name="prelim"]:checked')).map(function(i){return i.value;});
-    var currentCat = catSelect.value;
-    buildChipGroup("f_prelim", CATEGORY_OPTIONS, "prelim", true);
-    setChecks("prelim", checkedPrelim);
-    catSelect.innerHTML = '<option value="">請選擇</option>' + CATEGORY_OPTIONS.map(function(c){return '<option>'+c+'</option>';}).join("");
-    catSelect.value = CATEGORY_OPTIONS.indexOf(currentCat)>=0 ? currentCat : "";
-  }
-  function renderCategoryEditor(){
-    var listEl = document.getElementById("categoryEditorList");
-    listEl.innerHTML = "";
-    CATEGORY_OPTIONS.forEach(function(cat, idx){
-      var row = document.createElement("div");
-      row.style.cssText = "display:flex;align-items:center;gap:8px;padding:5px 0;";
-      row.innerHTML =
-        '<input type="text" value="'+escAttr(cat)+'" style="flex:1;padding:6px 9px;border:1px solid var(--line);border-radius:5px;">'+
-        '<button type="button" class="btn btn-outline btn-sm" style="border-color:var(--line);color:var(--steel);">重新命名</button>'+
-        '<button type="button" class="btn btn-outline btn-sm" style="border-color:var(--red);color:var(--red);">刪除</button>';
-      var input = row.querySelector('input');
-      var renameBtn = row.querySelectorAll('button')[0];
-      var deleteBtn = row.querySelectorAll('button')[1];
-      renameBtn.addEventListener("click", function(){
-        var newName = input.value.trim();
-        if (!newName){ toast("分類名稱不能空白"); return; }
-        if (newName===cat){ return; }
-        if (CATEGORY_OPTIONS.indexOf(newName)>=0){ toast("已經有相同名稱的分類了"); return; }
-        CATEGORY_OPTIONS[idx] = newName;
-        persistCategories();
-        rebuildCategoryUI();
-        renderCategoryEditor();
-        toast("已將「"+cat+"」重新命名為「"+newName+"」（不會改動已儲存案例中的舊名稱）");
-      });
-      deleteBtn.addEventListener("click", function(){
-        if (!confirm('確定要刪除分類「'+cat+'」嗎？已儲存案例中記錄的這個分類名稱不會被刪除或變動，只是往後無法再選擇這個選項。')) return;
-        CATEGORY_OPTIONS.splice(idx,1);
-        persistCategories();
-        rebuildCategoryUI();
-        renderCategoryEditor();
-        toast("已刪除分類「"+cat+"」");
-      });
-      listEl.appendChild(row);
-    });
-  }
-  document.getElementById("btnEditCategories").addEventListener("click", function(){
-    var panel = document.getElementById("categoryEditor");
-    var show = panel.style.display === "none";
-    panel.style.display = show ? "block" : "none";
-    if (show) renderCategoryEditor();
-  });
-  function addCategoryFromInput(){
-    var input = document.getElementById("newCategoryInput");
-    var name = input.value.trim();
-    if (!name){ return; }
-    if (CATEGORY_OPTIONS.indexOf(name)>=0){ toast("這個分類已經存在了"); return; }
-    CATEGORY_OPTIONS.push(name);
-    persistCategories();
-    rebuildCategoryUI();
-    renderCategoryEditor();
-    input.value = "";
-    toast("已新增分類「"+name+"」");
-  }
-  document.getElementById("btnAddCategory").addEventListener("click", addCategoryFromInput);
-  document.getElementById("newCategoryInput").addEventListener("keydown", function(e){
-    if (e.key==="Enter"){ e.preventDefault(); addCategoryFromInput(); }
   });
 
   function checkStepRow(step, item, value){
@@ -683,12 +616,10 @@
     if (Array.isArray(values) && values.length){
       values.forEach(measureRow);
     } else if (values && typeof values==="object" && Object.keys(values).length){
-      // 相容舊版（物件格式）資料，自動轉換成新的可編輯陣列格式
       Object.keys(values).forEach(function(item){
         measureRow({item:item, value:values[item].value||"", spec:values[item].spec||""});
       });
     }
-    // 若無任何資料，表格保持空白，由使用者自行新增
   }
   rebuildMeasures();
   document.getElementById("btnAddMeasure").addEventListener("click", function(){ measureRow(); });
@@ -710,7 +641,7 @@
 
   function escAttr(s){ return (s==null?"":String(s)).replace(/"/g,"&quot;"); }
 
-  /* ---------------- 照片 / 影片上傳 ---------------- */
+  /* ---------------- 照片 / 影片 / Log 上傳 ---------------- */
   var photos = [], videos = [];
   function readFileAsDataURL(file, cb){
     var reader = new FileReader();
@@ -725,7 +656,6 @@
       div.className = "thumb";
       var media;
       if (!item.dataUrl){
-        // 雲端模式下，其他人看到的只有檔名（原始檔僅存在上傳者本機）
         media = '<div style="width:88px;height:88px;border-radius:6px;border:1px solid var(--line);background:#F0F2F5;display:flex;align-items:center;justify-content:center;font-size:22px;">'+(isVideo?"🎬":"🖼")+'</div>';
       } else {
         media = isVideo ? '<video src="'+item.dataUrl+'" muted></video>' : '<img src="'+item.dataUrl+'">';
@@ -751,7 +681,6 @@
     e.target.value = "";
   });
 
-  /* ---------------- Log File 上傳 ---------------- */
   var logs = [];
   function formatBytes(n){
     if (!n && n!==0) return "";
@@ -853,6 +782,17 @@
       var el = document.querySelector('input[name="'+name+'"]:checked');
       return el ? el.value : "";
     }
+
+    var selectedCat = document.getElementById("f_category").value.trim();
+    if (selectedCat && CATEGORY_OPTIONS.indexOf(selectedCat) === -1){
+      CATEGORY_OPTIONS.push(selectedCat);
+      saveCategoryOptions(CATEGORY_OPTIONS);
+      refreshEditableDatalists();
+      if (CLOUD_ENABLED && firestoreDB){
+        firestoreDB.collection("app_config").doc("categories").set({list: CATEGORY_OPTIONS}).catch(function(e){ console.error(e); });
+      }
+    }
+
     return {
       basic:{
         caseId: document.getElementById("f_caseId").value,
@@ -883,7 +823,7 @@
       measurements: measurements,
       attachments:{ tags: checkedValues("attachTags"), photos: photos, videos: videos, logs: logs },
       aiTags:{
-        category: document.getElementById("f_category").value,
+        category: selectedCat,
         partsReplacedSummary: document.getElementById("f_partsReplacedSummary").value,
         robotAxis: checkedValues("robotAxis"),
         repairTime: document.getElementById("f_repairTime").value,
@@ -940,7 +880,6 @@
     videos = (rec.attachments&&rec.attachments.videos)||[];
     logs = (rec.attachments&&rec.attachments.logs)||[];
     if (CLOUD_ENABLED){
-      // 雲端模式下，附件原始檔沒有存在雲端，先看看這台瀏覽器本機是否有快取的完整版本（例如自己剛上傳的）
       var attachCache = loadAttachCache();
       var cachedAttach = attachCache[rec.basic.caseId];
       if (cachedAttach){
@@ -953,7 +892,14 @@
     renderThumbs(photos,"photoThumbs",false);
     renderThumbs(videos,"videoThumbs",true);
 
-    document.getElementById("f_category").value = (rec.aiTags&&rec.aiTags.category)||"";
+    var catVal = (rec.aiTags&&rec.aiTags.category)||"";
+    if (catVal && CATEGORY_OPTIONS.indexOf(catVal) === -1){
+      CATEGORY_OPTIONS.push(catVal);
+      saveCategoryOptions(CATEGORY_OPTIONS);
+      refreshEditableDatalists();
+    }
+    document.getElementById("f_category").value = catVal;
+
     document.getElementById("f_partsReplacedSummary").value = (rec.aiTags&&rec.aiTags.partsReplacedSummary)||"";
     setChecks("robotAxis", (rec.aiTags&&rec.aiTags.robotAxis)||[]);
     document.getElementById("f_repairTime").value = (rec.aiTags&&rec.aiTags.repairTime)||"";
@@ -1030,7 +976,7 @@
       cache[rec.basic.caseId] = rec.attachments;
       saveAttachCache(cache);
       firestoreDB.collection("repair_cases").doc(rec.basic.caseId).set(stripHeavyAttachments(rec))
-        .then(function(){ toast("已同步至共用雲端資料庫（"+rec.basic.caseId+"）。照片/影片/Log原始檔僅保留在你的瀏覽器中。"); })
+        .then(function(){ toast("已同步至共用雲端資料庫（"+rec.basic.caseId+"）。"); })
         .catch(function(err){ toast("雲端同步失敗，已存在本機："+err.message); });
     } else {
       toast("已儲存至 AI Repair Case 資料庫（"+rec.basic.caseId+"）。記得按「匯出資料庫(.js)」更新 repair_cases_data.js 檔案。");
@@ -1085,9 +1031,72 @@
     fillDL("dl_site", db.map(function(c){return c.basic.site;}));
     fillDL("dl_robotModel", db.map(function(c){return c.basic.robotModel;}));
     fillDL("dl_machineModel", MACHINE_MODEL_SEED);
+
+    var allCats = CATEGORY_OPTIONS.concat(db.map(function(c){ return c.aiTags && c.aiTags.category; }));
+    fillDL("dl_category", allCats);
   }
 
-  /* ---------------- AI 相似案例建議（規則式比對） ---------------- */
+  /* ---------------- 分類管理視窗 (Category Modal) ---------------- */
+  var catModal = document.getElementById("catModal");
+  var catManageList = document.getElementById("catManageList");
+  var tempCatList = [];
+
+  function renderCatManageList(){
+    catManageList.innerHTML = "";
+    tempCatList.forEach(function(cat, idx){
+      var row = document.createElement("div");
+      row.className = "cat-item-row";
+      row.innerHTML =
+        '<input type="text" value="'+escAttr(cat)+'" data-idx="'+idx+'">'+
+        '<button type="button" class="btn btn-outline btn-sm rm-cat" style="color:var(--red);border-color:var(--line);">✕</button>';
+      row.querySelector(".rm-cat").addEventListener("click", function(){
+        tempCatList.splice(idx, 1);
+        renderCatManageList();
+      });
+      catManageList.appendChild(row);
+    });
+  }
+
+  document.getElementById("btnManageCat").addEventListener("click", function(){
+    tempCatList = CATEGORY_OPTIONS.slice();
+    renderCatManageList();
+    catModal.classList.add("show");
+  });
+
+  document.getElementById("btnAddCatItem").addEventListener("click", function(){
+    tempCatList.push("新分類 " + (tempCatList.length + 1));
+    renderCatManageList();
+    var inputs = catManageList.querySelectorAll("input");
+    if (inputs.length) inputs[inputs.length - 1].focus();
+  });
+
+  document.getElementById("btnCloseCatModal").addEventListener("click", function(){
+    catModal.classList.remove("show");
+  });
+
+  document.getElementById("btnSaveCatModal").addEventListener("click", function(){
+    var newCats = [];
+    catManageList.querySelectorAll("input").forEach(function(inp){
+      var v = inp.value.trim();
+      if (v && newCats.indexOf(v) === -1){
+        newCats.push(v);
+      }
+    });
+    CATEGORY_OPTIONS = newCats;
+    saveCategoryOptions(CATEGORY_OPTIONS);
+    refreshEditableDatalists();
+    buildChipGroup("f_prelim", CATEGORY_OPTIONS, "prelim", true);
+    if (CLOUD_ENABLED && firestoreDB){
+      firestoreDB.collection("app_config").doc("categories").set({list: CATEGORY_OPTIONS})
+        .then(function(){ toast("「故障分類」清單已儲存並同步至共用雲端資料庫！"); })
+        .catch(function(e){ toast("分類已存本機，但同步雲端失敗："+e.message); });
+    } else {
+      toast("「故障分類」清單已儲存更新！");
+    }
+    catModal.classList.remove("show");
+  });
+
+  /* ---------------- AI 相似案例建議 ---------------- */
   function refreshSimilar(){
     var errorCode = document.getElementById("f_errorCode").value.trim().toLowerCase();
     var category = document.getElementById("f_category").value;
@@ -1142,8 +1151,7 @@
   }
   function truncate(s,n){ s=s||""; return s.length>n ? s.slice(0,n)+"…" : (s||"—"); }
 
-  ["f_errorCode"].forEach(function(id){ document.getElementById(id).addEventListener("input", refreshSimilar); });
-  document.getElementById("f_category").addEventListener("change", refreshSimilar);
+  ["f_errorCode", "f_category"].forEach(function(id){ document.getElementById(id).addEventListener("input", refreshSimilar); });
 
   /* ---------------- 匯出 / 匯入 資料庫 (.js) ---------------- */
   document.getElementById("btnExport").addEventListener("click", function(){
@@ -1206,7 +1214,7 @@
   /* ---------------- 初始化 ---------------- */
   renderCaseList();
   refreshErrorCodeList();
-    refreshEditableDatalists();
+  refreshEditableDatalists();
   resetForm();
   initCloud();
 
