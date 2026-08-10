@@ -159,7 +159,7 @@
   <!-- ================= SIDEBAR ================= -->
   <div id="sidebar" class="no-print">
     <h3>案例查詢</h3>
-    <input type="text" id="searchBox" placeholder="搜尋 Error Code / 客戶 / 關鍵字...">
+    <input type="text" id="searchBox" placeholder="搜尋 Error Code / 客戶 / 機台型號 / Robot型號 / 關鍵字...">
     <div id="caseList"></div>
 
     <div id="sim-panel">
@@ -999,7 +999,7 @@
     if (filter){
       var f = filter.toLowerCase();
       items = items.filter(function(c){
-        var hay = [c.basic.caseId, c.basic.customer, c.fault.errorCode, (c.aiTags&&c.aiTags.keywords||[]).join(" ")].join(" ").toLowerCase();
+        var hay = [c.basic.caseId, c.basic.customer, c.basic.machineModel, c.basic.robotModel, c.fault.errorCode, (c.aiTags&&c.aiTags.keywords||[]).join(" ")].join(" ").toLowerCase();
         return hay.indexOf(f)>=0;
       });
     }
@@ -1009,7 +1009,7 @@
       div.className = "case-item";
       div.innerHTML =
         '<div class="l1"><span>'+(c.basic.caseId||"—")+'</span><span>'+(c.basic.date||"")+'</span></div>'+
-        '<div class="l2">'+(c.basic.customer||"客戶未填")+' ・ '+(c.fault.errorCode||"無 Error Code")+'</div>'+
+        '<div class="l2">'+(c.basic.customer||"客戶未填")+' ・ '+(c.basic.machineModel||"機台型號未填")+' ・ '+(c.basic.robotModel||"Robot型號未填")+' ・ '+(c.fault.errorCode||"無 Error Code")+'</div>'+
         (c.aiTags&&c.aiTags.category ? '<span class="tag">'+c.aiTags.category+'</span>' : '');
       div.addEventListener("click", function(){
         fillForm(c); refreshSimilar();
