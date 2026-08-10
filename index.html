@@ -989,7 +989,13 @@
   function renderCaseList(filter){
     var listEl = document.getElementById("caseList");
     listEl.innerHTML = "";
-    var items = db.slice().reverse();
+    var items = db.slice().sort(function(a,b){
+      var ta = (a.savedAt || (a.basic&&a.basic.date) || "");
+      var tb = (b.savedAt || (b.basic&&b.basic.date) || "");
+      if (ta < tb) return 1;
+      if (ta > tb) return -1;
+      return 0;
+    });
     if (filter){
       var f = filter.toLowerCase();
       items = items.filter(function(c){
