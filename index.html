@@ -29,7 +29,7 @@
   input,select,textarea{font-family:var(--sans);font-size:14px;color:var(--ink);}
 
   /* ---- Top bar ---- */
-  #topbar{position:sticky;top:0;z-index:50;background:var(--card);color:var(--ink);padding:10px 20px;display:flex;align-items:center;gap:14px;flex-wrap:wrap;border-bottom:1px solid var(--line);}
+  #topbar{position:sticky;top:0;z-index:50;background:var(--card);color:var(--ink);padding:10px 20px;display:flex;align-items:center;gap:10px;flex-wrap:wrap;border-bottom:1px solid var(--line);}
   #topbar .title{font-weight:700;font-size:16px;letter-spacing:.3px;color:var(--ink);}
   #topbar .title small{display:block;font-weight:400;font-size:11px;color:var(--ink-soft);letter-spacing:.5px;}
   #topbar .caseid{font-family:var(--mono);background:var(--amber-soft);border:1px solid #F0C583;color:#8A5300;padding:4px 10px;border-radius:4px;font-size:12px;}
@@ -43,6 +43,10 @@
   .btn-danger{background:var(--red);color:#fff;}
   .btn-sm{padding:5px 10px;font-size:12px;border-radius:5px;}
 
+  /* 權限控制元素隱藏/顯示 */
+  .auth-edit-only { display: none !important; }
+  .auth-user-mode .auth-edit-only { display: inline-block !important; }
+  
   /* ---- Layout ---- */
   #layout{display:grid;grid-template-columns:280px 1fr;gap:0;align-items:start;}
   #sidebar{position:sticky;top:52px;height:calc(100vh - 52px);overflow-y:auto;background:var(--paper);color:var(--ink);padding:16px;border-right:1px solid var(--line);}
@@ -150,12 +154,17 @@
   <div class="caseid" id="caseIdDisplay">Case ID：草稿</div>
   <span class="caseid no-print" id="cloudStatus" style="color:#8A98A8;">本機模式</span>
   <div class="spacer"></div>
-  <button class="btn btn-outline btn-sm no-print" id="btnAdminAuth">🔒 管理者登入</button>
-  <button class="btn btn-outline btn-sm no-print" id="btnNew">＋ 新案例</button>
-  <button class="btn btn-ghost btn-sm no-print" id="btnImport">匯入資料庫(.js)</button>
+  
+  <!-- 固定呈現的雙登入按鈕 -->
+  <button class="btn btn-outline btn-sm no-print" id="btnUserLogin">🔑 使用者登入</button>
+  <button class="btn btn-outline btn-sm no-print" id="btnAdminLogin">🔒 管理者登入</button>
+  
+  <!-- 權限解鎖後展現的操作按鈕 -->
+  <button class="btn btn-outline btn-sm no-print auth-edit-only" id="btnNew">＋ 新案例</button>
+  <button class="btn btn-ghost btn-sm no-print auth-edit-only" id="btnImport">匯入資料庫(.js)</button>
   <button class="btn btn-ghost btn-sm no-print" id="btnExport">匯出資料庫(.js)</button>
   <button class="btn btn-ghost btn-sm no-print" id="btnPrint">產生維修報告(PDF)</button>
-  <button class="btn btn-amber btn-sm no-print" id="btnSave">✓ 儲存至 AI Repair Case 資料庫</button>
+  <button class="btn btn-amber btn-sm no-print auth-edit-only" id="btnSave">✓ 儲存至 AI Repair Case 資料庫</button>
   <input type="file" id="fileImport" accept=".js" style="display:none">
 </div>
 
@@ -206,7 +215,7 @@
           <datalist id="dl_robotModel"></datalist>
         </div>
         <div class="field"><label>Robot SN</label><input type="text" id="f_robotSN"></div>
-        <div class="field"><label>工程師</label><input type="text" id="f_engineer"></div>
+        <div class="field"><label>工程師</label><input type="text" id="f_engineer" placeholder="請登入工號或輸入姓名"></div>
       </div>
       <div class="field"><label>維修類型</label>
         <div class="chipgroup" id="f_repairType">
@@ -242,7 +251,7 @@
       </div>
       <div class="field"><label>客戶描述</label><textarea id="f_customerDesc" style="min-height:44px;"></textarea></div>
       <div class="field"><label>Log File</label>
-        <div class="upload-zone no-print">
+        <div class="upload-zone no-print auth-edit-only">
           <label for="logInput">📄 點擊上傳 Log File（.log／.txt／.csv／.zip 等）</label>
           <input type="file" id="logInput" multiple>
         </div>
@@ -279,7 +288,7 @@
         <thead><tr><th>Part No</th><th>零件名稱</th><th>SN</th><th style="width:80px;">數量</th><th style="width:36px;"></th></tr></thead>
         <tbody id="partsBody"></tbody>
       </table>
-      <button class="btn btn-outline btn-sm add-row no-print" id="btnAddPart" style="border-color:var(--line);color:var(--steel);">＋ 新增零件</button>
+      <button class="btn btn-outline btn-sm add-row no-print auth-edit-only" id="btnAddPart" style="border-color:var(--line);color:var(--steel);">＋ 新增零件</button>
     </div>
 
     <!-- 七、Root Cause -->
@@ -314,7 +323,7 @@
         <option value="Vacuum"><option value="Air Pressure"><option value="Servo Current">
         <option value="Encoder Count"><option value="Position Error"><option value="Vibration"><option value="Repeatability">
       </datalist>
-      <button class="btn btn-outline btn-sm add-row no-print" id="btnAddMeasure" style="border-color:var(--line);color:var(--steel);">＋ 新增量測項目</button>
+      <button class="btn btn-outline btn-sm add-row no-print auth-edit-only" id="btnAddMeasure" style="border-color:var(--line);color:var(--steel);">＋ 新增量測項目</button>
     </div>
 
     <!-- 十一、附件 -->
@@ -322,13 +331,13 @@
       <h2>十一、附件</h2>
       <div class="chipgroup" id="f_attachTags"></div>
       <div style="height:12px;"></div>
-      <div class="upload-zone no-print">
+      <div class="upload-zone no-print auth-edit-only">
         <label for="photoInput">📷 點擊上傳照片（Before / After Repair 皆可）</label>
         <input type="file" id="photoInput" accept="image/*" multiple>
       </div>
       <div class="thumbs" id="photoThumbs"></div>
       <div style="height:12px;"></div>
-      <div class="upload-zone no-print">
+      <div class="upload-zone no-print auth-edit-only">
         <label for="videoInput">🎬 點擊上傳維修影片</label>
         <input type="file" id="videoInput" accept="video/*" multiple>
       </div>
@@ -343,7 +352,7 @@
         <div class="field">
           <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:4px;">
             <label style="margin:0;">故障分類</label>
-            <button type="button" class="btn btn-outline btn-sm no-print" id="btnManageCat" style="padding:1px 6px;font-size:11px;">⚙ 管理分類</button>
+            <button type="button" class="btn btn-outline btn-sm no-print auth-edit-only" id="btnManageCat" style="padding:1px 6px;font-size:11px;">⚙ 管理分類</button>
           </div>
           <input type="text" id="f_category" list="dl_category" placeholder="選擇或輸入新故障分類">
           <datalist id="dl_category"></datalist>
@@ -414,39 +423,144 @@
   "use strict";
 
   /* ---------------- 權限與登入機制 ---------------- */
-  var ADMIN_PASSWORD = "aue9219"; // 預設密碼，可自由更換
-  var isAdmin = sessionStorage.getItem("robot_admin_auth") === "true";
+  var ADMIN_PASSWORD = "admin123"; // 最高管理者專屬密碼
 
-  function updateAdminUI(){
-    var btn = document.getElementById("btnAdminAuth");
-    if(isAdmin){
-      document.body.classList.add("admin-mode");
-      btn.textContent = "🔓 登出管理者";
-      btn.classList.add("btn-amber");
-      btn.classList.remove("btn-outline");
-    } else {
+  var authRole = sessionStorage.getItem("robot_user_role") || "guest"; // 'guest', 'user', 'admin'
+  var currentUserEmpId = sessionStorage.getItem("robot_user_empid") || "";
+
+  function updateAuthUI(){
+    var btnUser = document.getElementById("btnUserLogin");
+    var btnAdmin = document.getElementById("btnAdminLogin");
+
+    btnUser.style.display = "inline-block";
+    btnAdmin.style.display = "inline-block";
+
+    if(authRole === "admin"){
+      document.body.classList.add("auth-user-mode", "admin-mode");
+      btnUser.style.display = "none";
+      btnAdmin.textContent = "🔓 登出 (最高管理者)";
+      btnAdmin.classList.add("btn-amber");
+      btnAdmin.classList.remove("btn-outline");
+    } else if(authRole === "user"){
+      document.body.classList.add("auth-user-mode");
       document.body.classList.remove("admin-mode");
-      btn.textContent = "🔒 管理者登入";
-      btn.classList.remove("btn-amber");
-      btn.classList.add("btn-outline");
+      btnAdmin.style.display = "none";
+      btnUser.textContent = "🔓 登出 (" + currentUserEmpId + ")";
+      btnUser.classList.add("btn-amber");
+      btnUser.classList.remove("btn-outline");
+    } else {
+      document.body.classList.remove("auth-user-mode", "admin-mode");
+      btnUser.textContent = "🔑 使用者登入";
+      btnUser.classList.remove("btn-amber");
+      btnUser.classList.add("btn-outline");
+
+      btnAdmin.textContent = "🔒 管理者登入";
+      btnAdmin.classList.remove("btn-amber");
+      btnAdmin.classList.add("btn-outline");
     }
+
+    var canEdit = (authRole === "user" || authRole === "admin");
+    
+    // 控制主要表單輸入欄位唯讀狀態
+    var mainInputs = document.querySelectorAll("#main input, #main select, #main textarea");
+    mainInputs.forEach(function(inp){
+      if(inp.id === "f_caseId") return; // Case ID 始終 Readonly
+      inp.disabled = !canEdit;
+    });
+
+    // 控制 Chip 點擊與星星評價
+    document.querySelectorAll(".chip, .stars").forEach(function(el){
+      el.style.pointerEvents = canEdit ? "auto" : "none";
+    });
   }
 
-  document.getElementById("btnAdminAuth").addEventListener("click", function(){
-    if(isAdmin){
-      isAdmin = false;
-      sessionStorage.removeItem("robot_admin_auth");
-      updateAdminUI();
-      toast("已切換為一般檢視權限");
+  /* 使用者登入事件 (支援 Firebase users 集合進行驗證) */
+  document.getElementById("btnUserLogin").addEventListener("click", function(){
+    if(authRole === "user"){
+      authRole = "guest";
+      currentUserEmpId = "";
+      sessionStorage.removeItem("robot_user_role");
+      sessionStorage.removeItem("robot_user_empid");
+      updateAuthUI();
+      toast("已登出使用者，切換為唯讀模式");
     } else {
-      var pwd = prompt("請輸入管理者密碼：");
+      var empId = prompt("【使用者登入】\n請輸入您的工號：");
+      if(!empId || !empId.trim()){
+        if(empId !== null) toast("工號不能為空！");
+        return;
+      }
+      empId = empId.trim();
+
+      var pwd = prompt("【使用者登入】\n請輸入您的密碼：");
+      if(pwd === null) return;
+
+      // 如果有連接 Firebase Firestore，直接線上查詢 users 集合
+      if(CLOUD_ENABLED && firestoreDB){
+        toast("正連線驗證使用者資料...");
+        firestoreDB.collection("users").doc(empId).get().then(function(doc){
+          if(doc.exists){
+            var userData = doc.data();
+            if(userData.password === pwd){
+              authRole = "user";
+              currentUserEmpId = userData.name ? (empId + " " + userData.name) : empId;
+              sessionStorage.setItem("robot_user_role", "user");
+              sessionStorage.setItem("robot_user_empid", currentUserEmpId);
+              updateAuthUI();
+
+              var engInput = document.getElementById("f_engineer");
+              if(engInput && !engInput.value) engInput.value = currentUserEmpId;
+
+              toast("使用者 [" + currentUserEmpId + "] 登入成功！");
+            } else {
+              toast("密碼錯誤，請重新確認！");
+            }
+          } else {
+            toast("找不到工號 [" + empId + "]，請確認 Firebase 資料庫設定！");
+          }
+        }).catch(function(err){
+          console.error(err);
+          toast("Firebase 驗證失敗："+err.message);
+        });
+      } else {
+        // 本機備援驗證模式
+        if(pwd === "user123"){
+          authRole = "user";
+          currentUserEmpId = empId.toUpperCase();
+          sessionStorage.setItem("robot_user_role", "user");
+          sessionStorage.setItem("robot_user_empid", currentUserEmpId);
+          updateAuthUI();
+
+          var engInput = document.getElementById("f_engineer");
+          if(engInput && !engInput.value) engInput.value = currentUserEmpId;
+
+          toast("本機備援驗證成功！使用者 [" + currentUserEmpId + "] 已解鎖編輯權限。");
+        } else {
+          toast("密碼錯誤！");
+        }
+      }
+    }
+  });
+
+  /* 管理者登入事件 */
+  document.getElementById("btnAdminLogin").addEventListener("click", function(){
+    if(authRole === "admin"){
+      authRole = "guest";
+      currentUserEmpId = "";
+      sessionStorage.removeItem("robot_user_role");
+      sessionStorage.removeItem("robot_user_empid");
+      updateAuthUI();
+      toast("已登出管理者，切換為唯讀模式");
+    } else {
+      var pwd = prompt("【最高管理者專屬登入】\n請輸入管理者密碼：");
       if(pwd === ADMIN_PASSWORD){
-        isAdmin = true;
-        sessionStorage.setItem("robot_admin_auth", "true");
-        updateAdminUI();
-        toast("管理者驗證成功，已解鎖案例刪除權限");
+        authRole = "admin";
+        currentUserEmpId = "ADMIN";
+        sessionStorage.setItem("robot_user_role", "admin");
+        sessionStorage.setItem("robot_user_empid", "ADMIN");
+        updateAuthUI();
+        toast("最高管理者驗證成功！解鎖包含刪除在內的所有權限。");
       } else if(pwd !== null){
-        toast("密碼錯誤！");
+        toast("管理者密碼錯誤！存取被拒絕。");
       }
     }
   });
@@ -650,7 +764,7 @@
       '<td><input type="text" class="meas-item" list="dl_measureItem" value="'+escAttr(m.item)+'" placeholder="例：Vacuum"></td>'+
       '<td><input type="text" class="meas-value" value="'+escAttr(m.value)+'"></td>'+
       '<td><input type="text" class="meas-spec" value="'+escAttr(m.spec)+'"></td>'+
-      '<td class="row-actions no-print"><button type="button" title="刪除">✕</button></td>';
+      '<td class="row-actions no-print"><button type="button" class="auth-edit-only" title="刪除">✕</button></td>';
     tr.querySelector("button").addEventListener("click", function(){ tr.remove(); });
     document.getElementById("measureBody").appendChild(tr);
   }
@@ -675,7 +789,7 @@
       '<td><input type="text" class="part-name" value="'+escAttr(part.partName)+'"></td>'+
       '<td><input type="text" class="part-sn" value="'+escAttr(part.sn)+'"></td>'+
       '<td><input type="text" class="part-qty" value="'+escAttr(part.qty)+'"></td>'+
-      '<td class="row-actions no-print"><button type="button" title="刪除">✕</button></td>';
+      '<td class="row-actions no-print"><button type="button" class="auth-edit-only" title="刪除">✕</button></td>';
     tr.querySelector("button").addEventListener("click", function(){ tr.remove(); });
     document.getElementById("partsBody").appendChild(tr);
   }
@@ -703,11 +817,14 @@
       } else {
         media = isVideo ? '<video src="'+item.dataUrl+'" muted></video>' : '<img src="'+item.dataUrl+'">';
       }
-      div.innerHTML = media + '<div class="name">'+item.name+(item.dataUrl?'':'（僅上傳者本機可見）')+'</div><button type="button" class="rm no-print">✕</button>';
-      div.querySelector(".rm").addEventListener("click", function(){
-        list.splice(idx,1);
-        renderThumbs(list, containerId, isVideo);
-      });
+      div.innerHTML = media + '<div class="name">'+item.name+(item.dataUrl?'':'（僅上傳者本機可見）')+'</div><button type="button" class="rm no-print auth-edit-only">✕</button>';
+      var rmBtn = div.querySelector(".rm");
+      if(rmBtn){
+        rmBtn.addEventListener("click", function(){
+          list.splice(idx,1);
+          renderThumbs(list, containerId, isVideo);
+        });
+      }
       el.appendChild(div);
     });
   }
@@ -744,8 +861,11 @@
       row.innerHTML =
         '<span style="flex:1;word-break:break-all;">📄 '+item.name+' <span style="color:#8A98A8;">('+formatBytes(item.size)+')</span></span>'+
         downloadBtn+
-        '<button type="button" class="btn btn-outline btn-sm no-print rm-log" style="border-color:var(--red);color:var(--red);">刪除</button>';
-      row.querySelector(".rm-log").addEventListener("click", function(){ logs.splice(idx,1); renderLogs(); });
+        '<button type="button" class="btn btn-outline btn-sm no-print rm-log auth-edit-only" style="border-color:var(--red);color:var(--red);">刪除</button>';
+      var rmBtn = row.querySelector(".rm-log");
+      if(rmBtn){
+        rmBtn.addEventListener("click", function(){ logs.splice(idx,1); renderLogs(); });
+      }
       el.appendChild(row);
     });
   }
@@ -765,8 +885,11 @@
     keywords.forEach(function(kw, idx){
       var span = document.createElement("span");
       span.className = "kw";
-      span.innerHTML = kw + ' <button type="button">✕</button>';
-      span.querySelector("button").addEventListener("click", function(){ keywords.splice(idx,1); renderKeywords(); refreshSimilar(); });
+      span.innerHTML = kw + ' <button type="button" class="auth-edit-only">✕</button>';
+      var btn = span.querySelector("button");
+      if(btn){
+        btn.addEventListener("click", function(){ keywords.splice(idx,1); renderKeywords(); refreshSimilar(); });
+      }
       box.insertBefore(span, input);
     });
   }
@@ -960,6 +1083,7 @@
     document.getElementById("f_prevention").value = (rec.aiSummary&&rec.aiSummary.prevention)||"";
     starValue = (rec.aiSummary&&rec.aiSummary.recommendRating)||5;
     renderStars();
+    updateAuthUI();
   }
 
   function setRadio(name, value){
@@ -991,7 +1115,13 @@
     document.getElementById("f_caseId").value = id;
     document.getElementById("caseIdDisplay").textContent = "Case ID："+id;
     document.getElementById("f_date").value = new Date().toISOString().slice(0,10);
+    
+    if(currentUserEmpId && currentUserEmpId !== "ADMIN"){
+      document.getElementById("f_engineer").value = currentUserEmpId;
+    }
+    
     refreshSimilar();
+    updateAuthUI();
   }
 
   /* ---------------- 儲存 / 刪除 / 案例清單 ---------------- */
@@ -1003,6 +1133,10 @@
   }
 
   document.getElementById("btnSave").addEventListener("click", function(){
+    if (authRole === "guest"){
+      toast("權限不足，請先登入使用者帳號！");
+      return;
+    }
     var rec = collectForm();
     if (!rec.basic.caseId){ rec.basic.caseId = newCaseId(); }
     var existingIdx = db.findIndex(function(c){ return c.basic.caseId===rec.basic.caseId; });
@@ -1027,8 +1161,8 @@
   });
 
   function deleteCase(caseId){
-    if (!isAdmin){
-      toast("權限不足，只有管理者可以刪除案例！");
+    if (authRole !== "admin"){
+      toast("權限不足，只有最高管理者可以刪除案例！");
       return;
     }
     if (!confirm("確定要刪除案例 " + caseId + " 嗎？此動作無法復原！")) return;
@@ -1062,7 +1196,7 @@
     var listEl = document.getElementById("caseList");
     listEl.innerHTML = "";
     
-    // 【修改處】：依據「維修日期 (basic.date)」由新到舊排序，若日期相同則比對 savedAt
+    // 依「維修日期 (basic.date)」排序，最新優先
     var items = db.slice().sort(function(a,b){
       var da = (a.basic && a.basic.date) || "";
       var db_date = (b.basic && b.basic.date) || "";
@@ -1233,12 +1367,15 @@
         '<div><span class="score">相似度 '+Math.min(s.score,100)+'</span> ・ '+(c.basic.caseId||"")+'</div>'+
         '<div style="margin-top:4px;color:var(--ink);">'+(c.fault.errorCode||"—")+' ・ '+(c.aiTags&&c.aiTags.category||"—")+'</div>'+
         '<div style="margin-top:4px;color:var(--ink-soft);">Root Cause：'+truncate(c.rootCause,60)+'</div>'+
-        '<button type="button" class="btn btn-outline btn-sm apply no-print" style="border-color:#F0C583;color:#8A5300;">套用建議至 Root Cause / 改善措施</button>';
-      div.querySelector(".apply").addEventListener("click", function(){
-        if (c.rootCause) document.getElementById("f_rootCause").value = "[參考 "+c.basic.caseId+"] " + c.rootCause;
-        if (c.improvement) document.getElementById("f_improvement").value = "[參考 "+c.basic.caseId+"] " + c.improvement;
-        toast("已套用 "+c.basic.caseId+" 的建議內容，請依實際狀況調整。");
-      });
+        '<button type="button" class="btn btn-outline btn-sm apply no-print auth-edit-only" style="border-color:#F0C583;color:#8A5300;">套用建議至 Root Cause / 改善措施</button>';
+      var applyBtn = div.querySelector(".apply");
+      if(applyBtn){
+        applyBtn.addEventListener("click", function(){
+          if (c.rootCause) document.getElementById("f_rootCause").value = "[參考 "+c.basic.caseId+"] " + c.rootCause;
+          if (c.improvement) document.getElementById("f_improvement").value = "[參考 "+c.basic.caseId+"] " + c.improvement;
+          toast("已套用 "+c.basic.caseId+" 的建議內容，請依實際狀況調整。");
+        });
+      }
       el.appendChild(div);
     });
   }
@@ -1305,7 +1442,7 @@
   });
 
   /* ---------------- 初始化 ---------------- */
-  updateAdminUI();
+  updateAuthUI();
   renderCaseList();
   refreshErrorCodeList();
   refreshEditableDatalists();
