@@ -49,11 +49,15 @@
   #sidebar h3{font-size:12px;letter-spacing:1px;color:var(--ink-soft);text-transform:uppercase;margin-bottom:8px;}
   #sidebar input[type=text]{width:100%;padding:7px 9px;border-radius:5px;border:1px solid var(--line);background:#fff;color:var(--ink);margin-bottom:10px;}
   #sidebar input[type=text]::placeholder{color:#A3AEBB;}
-  .case-item{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:8px;cursor:pointer;font-size:12px;}
+  .case-item{background:#fff;border:1px solid var(--line);border-radius:6px;padding:9px 10px;margin-bottom:8px;cursor:pointer;font-size:12px;position:relative;}
   .case-item:hover{border-color:var(--amber);box-shadow:0 0 0 1px var(--amber);}
-  .case-item .l1{font-weight:700;color:var(--ink);display:flex;justify-content:space-between;}
-  .case-item .l2{color:var(--ink-soft);margin-top:2px;}
+  .case-item .l1{font-weight:700;color:var(--ink);display:flex;justify-content:space-between;align-items:center;}
+  .case-item .l2{color:var(--ink-soft);margin-top:2px;padding-right:30px;}
   .case-item .tag{display:inline-block;background:var(--amber-soft);color:#8A5300;border-radius:3px;padding:1px 6px;font-size:10px;margin-top:4px;}
+  .case-item .btn-delete-case{position:absolute;right:8px;bottom:8px;background:var(--red-soft);color:var(--red);border:1px solid var(--red);border-radius:4px;padding:2px 6px;font-size:11px;font-weight:bold;cursor:pointer;display:none;}
+  .case-item .btn-delete-case:hover{background:var(--red);color:#fff;}
+  .admin-mode .btn-delete-case{display:block;}
+
   #sim-panel{margin-top:18px;border-top:1px solid var(--line);padding-top:14px;}
   .sim-card{background:var(--amber-soft);border:1px solid #F0C583;border-radius:6px;padding:9px 10px;margin-bottom:8px;font-size:12px;color:var(--ink-soft);}
   .sim-card .score{color:#8A5300;font-weight:700;}
@@ -146,6 +150,7 @@
   <div class="caseid" id="caseIdDisplay">Case ID：草稿</div>
   <span class="caseid no-print" id="cloudStatus" style="color:#8A98A8;">本機模式</span>
   <div class="spacer"></div>
+  <button class="btn btn-outline btn-sm no-print" id="btnAdminAuth">🔒 管理者登入</button>
   <button class="btn btn-outline btn-sm no-print" id="btnNew">＋ 新案例</button>
   <button class="btn btn-ghost btn-sm no-print" id="btnImport">匯入資料庫(.js)</button>
   <button class="btn btn-ghost btn-sm no-print" id="btnExport">匯出資料庫(.js)</button>
@@ -407,6 +412,44 @@
 <script>
 (function(){
   "use strict";
+
+  /* ---------------- 權限與登入機制 ---------------- */
+  var ADMIN_PASSWORD = "aue9219"; // 預設密碼，可自由更換
+  var isAdmin = sessionStorage.getItem("robot_admin_auth") === "true";
+
+  function updateAdminUI(){
+    var btn = document.getElementById("btnAdminAuth");
+    if(isAdmin){
+      document.body.classList.add("admin-mode");
+      btn.textContent = "🔓 登出管理者";
+      btn.classList.add("btn-amber");
+      btn.classList.remove("btn-outline");
+    } else {
+      document.body.classList.remove("admin-mode");
+      btn.textContent = "🔒 管理者登入";
+      btn.classList.remove("btn-amber");
+      btn.classList.add("btn-outline");
+    }
+  }
+
+  document.getElementById("btnAdminAuth").addEventListener("click", function(){
+    if(isAdmin){
+      isAdmin = false;
+      sessionStorage.removeItem("robot_admin_auth");
+      updateAdminUI();
+      toast("已切換為一般檢視權限");
+    } else {
+      var pwd = prompt("請輸入管理者密碼：");
+      if(pwd === ADMIN_PASSWORD){
+        isAdmin = true;
+        sessionStorage.setItem("robot_admin_auth", "true");
+        updateAdminUI();
+        toast("管理者驗證成功，已解鎖案例刪除權限");
+      } else if(pwd !== null){
+        toast("密碼錯誤！");
+      }
+    }
+  });
 
   /* ---------------- 靜態選項與快取定義 ---------------- */
   var CAT_STORAGE_KEY = "robot_repair_custom_categories_v1";
@@ -951,7 +994,7 @@
     refreshSimilar();
   }
 
-  /* ---------------- 儲存 / 案例清單 ---------------- */
+  /* ---------------- 儲存 / 刪除 / 案例清單 ---------------- */
   function toast(msg){
     var t = document.getElementById("toast");
     t.textContent = msg; t.classList.add("show");
@@ -983,19 +1026,56 @@
     }
   });
 
+  function deleteCase(caseId){
+    if (!isAdmin){
+      toast("權限不足，只有管理者可以刪除案例！");
+      return;
+    }
+    if (!confirm("確定要刪除案例 " + caseId + " 嗎？此動作無法復原！")) return;
+
+    db = db.filter(function(c){ return c.basic.caseId !== caseId; });
+    persistLocal();
+
+    if (CLOUD_ENABLED && firestoreDB){
+      firestoreDB.collection("repair_cases").doc(caseId).delete().then(function(){
+        toast("已從雲端與本機成功刪除案例：" + caseId);
+      }).catch(function(err){
+        toast("雲端刪除失敗，但本機已移除：" + err.message);
+      });
+    } else {
+      toast("已成功刪除案例：" + caseId);
+    }
+
+    renderCaseList(document.getElementById("searchBox").value);
+    refreshErrorCodeList();
+    refreshEditableDatalists();
+
+    if (document.getElementById("f_caseId").value === caseId){
+      resetForm();
+    }
+  }
+
   document.getElementById("btnNew").addEventListener("click", resetForm);
   document.getElementById("btnPrint").addEventListener("click", function(){ window.print(); });
 
   function renderCaseList(filter){
     var listEl = document.getElementById("caseList");
     listEl.innerHTML = "";
+    
+    // 【修改處】：依據「維修日期 (basic.date)」由新到舊排序，若日期相同則比對 savedAt
     var items = db.slice().sort(function(a,b){
-      var ta = (a.savedAt || (a.basic&&a.basic.date) || "");
-      var tb = (b.savedAt || (b.basic&&b.basic.date) || "");
+      var da = (a.basic && a.basic.date) || "";
+      var db_date = (b.basic && b.basic.date) || "";
+      if (da !== db_date) {
+        return da < db_date ? 1 : -1;
+      }
+      var ta = a.savedAt || "";
+      var tb = b.savedAt || "";
       if (ta < tb) return 1;
       if (ta > tb) return -1;
       return 0;
     });
+
     if (filter){
       var f = filter.toLowerCase();
       items = items.filter(function(c){
@@ -1010,8 +1090,15 @@
       div.innerHTML =
         '<div class="l1"><span>'+(c.basic.caseId||"—")+'</span><span>'+(c.basic.date||"")+'</span></div>'+
         '<div class="l2">'+(c.basic.customer||"客戶未填")+' ・ '+(c.basic.machineModel||"機台型號未填")+' ・ '+(c.basic.robotModel||"Robot型號未填")+' ・ '+(c.fault.errorCode||"無 Error Code")+'</div>'+
-        (c.aiTags&&c.aiTags.category ? '<span class="tag">'+c.aiTags.category+'</span>' : '');
-      div.addEventListener("click", function(){
+        (c.aiTags&&c.aiTags.category ? '<span class="tag">'+c.aiTags.category+'</span>' : '') +
+        '<button type="button" class="btn-delete-case" title="刪除此案例">刪除</button>';
+      
+      div.addEventListener("click", function(e){
+        if (e.target.classList.contains("btn-delete-case")){
+          e.stopPropagation();
+          deleteCase(c.basic.caseId);
+          return;
+        }
         fillForm(c); refreshSimilar();
         document.getElementById("sec1").scrollIntoView({behavior:"smooth", block:"start"});
       });
@@ -1218,6 +1305,7 @@
   });
 
   /* ---------------- 初始化 ---------------- */
+  updateAdminUI();
   renderCaseList();
   refreshErrorCodeList();
   refreshEditableDatalists();
